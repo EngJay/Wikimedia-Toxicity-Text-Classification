@@ -1,0 +1,326 @@
+SET mapreduce.job.queuename=priority;
+SET mapreduce.input.fileinputformat.split.maxsize=100000000;
+SET mapreduce.input.fileinputformat.split.minsize=100000000;
+SET hive.exec.max.dynamic.partitions.pernode=250;
+SET hive.exec.dynamic.partition.mode=nonstrict;
+
+
+DROP TABLE If EXISTS talk_diff_external;
+CREATE EXTERNAL TABLE talk_diff_external (
+    rev_comment STRING,
+    insertion STRING,
+    insert_only STRING,
+    rev_id STRING,
+    page_id STRING,
+    page_title STRING,
+    rev_timestamp STRING,
+    user_id STRING,
+    user_text STRING
+)
+PARTITIONED BY (ns STRING)
+ROW FORMAT DELIMITED
+  FIELDS TERMINATED BY '\t'
+  LINES TERMINATED BY '\n' 
+STORED AS TEXTFILE
+LOCATION '/user/ellery/talk_diff_external';
+
+ALTER TABLE talk_diff_external ADD PARTITION(ns='user');
+ALTER TABLE talk_diff_external ADD PARTITION(ns='article');
+
+
+SELECT ns, COUNT(*) FROM talk_diff_external WHERE ns RLIKE '.*' GROUP BY ns;
+
+
+DROP TABLE IF EXISTS talk_diff_raw;
+CREATE TABLE talk_diff_raw (
+    rev_comment STRING,
+    insertion STRING,
+    insert_only STRING,
+    rev_id STRING,
+    page_id STRING,
+    page_title STRING,
+    rev_timestamp STRING,
+    user_id STRING,
+    user_text STRING
+)
+PARTITIONED BY (ns STRING, year STRING)
+ROW FORMAT DELIMITED
+  FIELDS TERMINATED BY '\t'
+  LINES TERMINATED BY '\n' 
+STORED AS TEXTFILE;
+
+
+INSERT OVERWRITE TABLE talk_diff_raw
+PARTITION (ns, year)
+SELECT
+    rev_comment,
+    SUBSTRING(insertion, 0, 5000) as insertion,
+    insert_only,
+    rev_id,
+    page_id,
+    page_title,
+    rev_timestamp,
+    user_id,
+    user_text,
+    ns,
+    SUBSTRING(rev_timestamp, 1, 4) as year
+FROM
+  talk_diff_external
+WHERE
+  ns RLIKE '.*'
+  AND rev_comment != "rev_comment";
+
+SELECT ns, COUNT(*) FROM talk_diff_raw WHERE ns RLIKE '.*' GROUP BY ns;
+
+
+SELECT ns, year, COUNT(*) FROM talk_diff_raw WHERE ns RLIKE '.*' GROUP BY ns, year;
+
+
+DROP TABLE IF EXISTS talk_diff;
+CREATE TABLE talk_diff (
+    rev_comment STRING,
+    insertion STRING,
+    insert_only STRING,
+    rev_id STRING,
+    page_id STRING,
+    page_title STRING,
+    rev_timestamp STRING,
+    user_id STRING,
+    user_text STRING,
+    bot INT,
+    admin INT
+)
+PARTITIONED BY (ns STRING, year STRING)
+ROW FORMAT DELIMITED
+  FIELDS TERMINATED BY '\t'
+  LINES TERMINATED BY '\n' 
+STORED AS TEXTFILE;
+
+
+INSERT OVERWRITE TABLE talk_diff
+PARTITION (ns, year)
+SELECT
+    rev_comment,
+    insertion,
+    insert_only,
+    rev_id,
+    page_id,
+    page_title,
+    rev_timestamp,
+    user_id,
+    user_text,
+    CASE
+      WHEN user_text RLIKE 'MediaWiki message delivery' THEN 1
+      WHEN user_text RLIKE 'Maintenance script' THEN 1
+      WHEN user_text RLIKE 'bot|Bot|BOT' THEN 1
+      ELSE 0
+    END AS bot,
+    CASE
+      WHEN ns = 'user' AND insertion RLIKE '\\[\\[Image:Octagon-warning' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE '\\[\\[Image:Stop' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE '\\[\\[Image:Information.' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE '\\[\\[Image:Copyright-problem' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE '\\[\\[Image:Ambox' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE '\\[\\[Image:Broom' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE '\\[\\[File:Information' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE '\\[\\[File:AFC-Logo_Decline' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE '\\[\\[File:Ambox' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE '\\[\\[File:Nuvola' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE '\\[\\[File:Stop' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE '\\[\\[File:Copyright-problem' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE '\\|alt=Warning icon\\]\\]' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE 'The article .* has been \\[\\[Wikipedia:Proposed deletion\\|proposed for deletion\\]\\]' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE 'Your submission at \\[\\[Wikipedia:Articles for creation\\|Articles for creation\\]\\]' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE 'A file that you uploaded or altered, .*, has been listed at \\[\\[Wikipedia:Possibly unfree files\\]\\]' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE 'User:SuggestBot' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE '\\[\\[Wikipedia:Criteria for speedy deletion\\|Speedy deletion\\]\\] nomination of' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE 'Please stop your \\[\\[Wikipedia:Disruptive editing\\|disruptive editing\\]\\]. If you continue to \\[\\[Wikipedia:Vandalism\\|vandalize\\]\\] Wikipedia, as you did to .*, you may be \\[\\[Wikipedia:Blocking policy\\|blocked from editing\\]\\]' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE 'Hello.*and.*\\[\\[Project:Introduction\\|welcome\\]\\].* to Wikipedia!' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE 'Nomination of .* for deletion' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE '== Speedy deletion nomination of' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE '==.*Welcome.*==' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE "==.*You're invited!.*==" THEN 1
+      WHEN ns = 'user' AND insertion RLIKE '== 5 Million: We celebrate your contribution ==' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE '==.*listed for discussion ==' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE 'This account has been renamed as part of single-user login finalisation' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE 'This Month in GLAM' THEN 1
+      WHEN ns = 'user' AND insertion RLIKE '== Your account will be renamed ==' THEN 1
+      ELSE 0
+    END AS admin,
+    ns,
+    year
+FROM
+  talk_diff_raw
+WHERE
+  ns RLIKE '.*';
+
+
+SELECT ns, COUNT(*) FROM talk_diff WHERE ns RLIKE '.*'  GROUP BY ns;
+
+SELECT ns, admin, bot, COUNT(*) FROM talk_diff WHERE ns RLIKE '.*'  GROUP BY ns, admin, bot;
+
+
+
+DROP TABLE IF EXISTS talk_diff_no_bot;
+CREATE TABLE talk_diff_no_bot (
+    rev_comment STRING,
+    insertion STRING,
+    insert_only STRING,
+    rev_id STRING,
+    page_id STRING,
+    page_title STRING,
+    rev_timestamp STRING,
+    user_id STRING,
+    user_text STRING
+)
+PARTITIONED BY (ns STRING, year STRING)
+ROW FORMAT DELIMITED
+  FIELDS TERMINATED BY '\t'
+  LINES TERMINATED BY '\n' 
+STORED AS TEXTFILE;
+
+
+INSERT OVERWRITE TABLE talk_diff_no_bot
+PARTITION (ns, year)
+SELECT
+    rev_comment,
+    insertion,
+    insert_only,
+    rev_id,
+    page_id,
+    page_title,
+    rev_timestamp,
+    user_id,
+    user_text,
+    ns,
+    year
+FROM
+  talk_diff t
+WHERE
+    bot = 0
+    AND ns RLIKE '.*';
+
+
+SELECT ns, COUNT(*) FROM talk_diff_no_bot WHERE ns RLIKE '.*' GROUP BY ns;
+
+
+DROP TABLE IF EXISTS talk_diff_no_admin;
+CREATE TABLE talk_diff_no_admin (
+    rev_comment STRING,
+    insertion STRING,
+    insert_only STRING,
+    rev_id STRING,
+    page_id STRING,
+    page_title STRING,
+    rev_timestamp STRING,
+    user_id STRING,
+    user_text STRING
+)
+PARTITIONED BY (ns STRING, year STRING)
+ROW FORMAT DELIMITED
+  FIELDS TERMINATED BY '\t'
+  LINES TERMINATED BY '\n' 
+STORED AS TEXTFILE;
+
+
+INSERT OVERWRITE TABLE talk_diff_no_admin
+PARTITION (ns, year)
+SELECT
+    rev_comment,
+    insertion,
+    insert_only,
+    rev_id,
+    page_id,
+    page_title,
+    rev_timestamp,
+    user_id,
+    user_text,
+    ns,
+    year
+FROM
+  talk_diff
+WHERE
+  bot = 0
+  AND admin = 0
+  AND ns RLIKE '.*';
+    
+
+SELECT ns, COUNT(*) FROM talk_diff_no_admin WHERE ns RLIKE '.*' GROUP BY ns;
+
+
+
+DROP TABLE IF EXISTS block_events;
+CREATE TABLE block_events
+ROW FORMAT DELIMITED
+  FIELDS TERMINATED BY '\t'
+  LINES TERMINATED BY '\n' 
+STORED AS TEXTFILE
+AS SELECT 
+  REGEXP_REPLACE(REGEXP_REPLACE(log_title, '_', ' '), 'User:', '')  as user_text,
+  log_comment AS reason,
+  log_timestamp AS timestamp,
+  log_params AS params
+FROM enwiki.logging 
+WHERE
+  log_type = 'block'
+  AND log_action in ('block', 'reblock')
+  AND LOWER(log_comment) RLIKE 'harassment|personal attack';
+
+
+DROP TABLE IF EXISTS blocked_user;
+CREATE TABLE blocked_user
+ROW FORMAT DELIMITED
+  FIELDS TERMINATED BY '\t'
+  LINES TERMINATED BY '\n' 
+STORED AS TEXTFILE
+AS SELECT 
+  REGEXP_REPLACE(REGEXP_REPLACE(log_title, '_', ' '), 'User:', '')  as user_text,
+  CONCAT_WS('PIPE', COLLECT_LIST(log_comment)) as reasons,
+  CONCAT_WS('PIPE', COLLECT_LIST(log_timestamp)) timestamps,
+  CONCAT_WS('PIPE', COLLECT_LIST(log_action)) actions,
+  CONCAT_WS('PIPE', COLLECT_LIST(log_params)) params
+FROM enwiki.logging 
+WHERE
+  log_type = 'block'
+  AND LOWER(log_comment) RLIKE 'harassment|personal attack'
+  AND log_action in ('block', 'reblock')
+GROUP BY log_title;
+
+
+
+DROP TABLE IF EXISTS blocked_talk_diff_no_admin;
+CREATE TABLE blocked_talk_diff_no_admin (
+    rev_comment STRING,
+    insertion STRING,
+    insert_only STRING,
+    rev_id STRING,
+    page_id STRING,
+    page_title STRING,
+    rev_timestamp STRING,
+    user_id STRING,
+    user_text STRING
+)
+PARTITIONED BY (ns STRING, year STRING)
+ROW FORMAT DELIMITED
+  FIELDS TERMINATED BY '\t'
+  LINES TERMINATED BY '\n' 
+STORED AS TEXTFILE;
+
+
+INSERT OVERWRITE TABLE blocked_talk_diff_no_admin
+PARTITION (ns, year)
+SELECT
+  d.*
+FROM
+  talk_diff_no_admin d
+JOIN
+  blocked_user u
+ON d.user_text = u.user_text
+WHERE ns RLIKE '.*';
+
+select ns, count(*) from blocked_talk_diff_no_admin where ns in ('article', 'user') group by ns;
+
+
+
+
+
