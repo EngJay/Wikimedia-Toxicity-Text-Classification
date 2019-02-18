@@ -7,8 +7,17 @@
 
 # Downloadable datasets.
 data/Wikimedia*
+data/jigsaw*
+
+# Downloadable pretrained embeddings.
+data/pretrained_embeddings/GoogleNews-vectors-negative300.bin
 
 # Generatable files.
+data/cache*
+data/pretrained_embeddings/embeddings-cache.bin
+
+# Tensorboard logs that are too large for repo.
+logs/tensorboard/*
 
 #=====================+
 #                    /
