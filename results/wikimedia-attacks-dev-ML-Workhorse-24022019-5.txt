@@ -1,0 +1,288 @@
+(tf_gpu) ubuntu@ip-172-31-35-157:~/projects/Wikimedia-Toxicity-Text-Classification$ ./wikitox.py -v -e 10
+/home/ubuntu/miniconda3/envs/tf_gpu/lib/python3.5/site-packages/requests/__init__.py:91: RequestsDependencyWarning: urllib3 (1.24.1) or chardet (3.0.4) doesn't match a supported version!
+  RequestsDependencyWarning)
+2019-02-24 19:52:08.837066: I tensorflow/core/platform/cpu_feature_guard.cc:137] Your CPU supports instructions that this TensorFlow binary was not compiled to use: SSE4.1 SSE4.2 AVX AVX2 FMA
+2019-02-24 19:52:11.461020: I tensorflow/stream_executor/cuda/cuda_gpu_executor.cc:892] successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
+2019-02-24 19:52:11.461378: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1030] Found device 0 with properties:
+name: Tesla K80 major: 3 minor: 7 memoryClockRate(GHz): 0.8235
+pciBusID: 0000:00:1e.0
+totalMemory: 11.17GiB freeMemory: 11.10GiB
+2019-02-24 19:52:11.461412: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1120] Creating TensorFlow device (/device:GPU:0) -> (device: 0, name: Tesla K80, pci bus id: 0000:00:1e.0, compute capability: 3.7)
+Found GPU at : /device:GPU:0
+loading data
+converting data to arrays
+processing record 115841 of 115841
+building text_cnn
+2019-02-24 19:52:17.697009: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1120] Creating TensorFlow device (/device:GPU:0) -> (device: 0, name: Tesla K80, pci bus id: 0000:00:1e.0, compute capability: 3.7)
+training network on 104256 documents, validating on 11585 documents
+iteration 50000 validation accuracy: 93.0859%08
+iteration 100000 validation accuracy: 93.5952%76
+epoch 1, sample 104256 of 104256, loss: 0.004660
+epoch 1 (Gao's) training accuracy: 91.4988%
+correct: 95393
+DEBUG:root:None
+total: 104256
+DEBUG:root:None
+[[88843  2629]
+ [ 6234  6550]]
+              precision    recall  f1-score   support
+
+           0       0.93      0.97      0.95     91472
+           1       0.71      0.51      0.60     12784
+
+   micro avg       0.91      0.91      0.91    104256
+   macro avg       0.82      0.74      0.77    104256
+weighted avg       0.91      0.91      0.91    104256
+
+accuracy: 0.9149881062001227
+precision: 0.7135853578821222
+recall: 0.5123591989987485
+f1: 0.5964576788234759
+log loss: 2.936226954129617
+DEBUG:matplotlib.axes._base:update_title_pos
+DEBUG:matplotlib.font_manager:findfont: Matching :family=sans-serif:style=normal:variant=normal:weight=normal:stretch=normal:size=10.0 to DejaVu Sans ('/home/ubuntu/miniconda3/envs/tf_gpu/lib/python3.5/site-packages/matplotlib/mpl-data/fonts/ttf/DejaVuSans.ttf') with score of 0.050000.
+DEBUG:matplotlib.axes._base:update_title_pos
+epoch 1 validation accuracy: 93.7419%
+iteration 50000 validation accuracy: 93.7419%64
+iteration 100000 validation accuracy: 93.8196%06
+epoch 2, sample 104256 of 104256, loss: 0.004633
+epoch 2 (Gao's) training accuracy: 93.3826%
+correct: 97357
+DEBUG:root:None
+total: 104256
+DEBUG:root:None
+[[89400  2072]
+ [ 4827  7957]]
+              precision    recall  f1-score   support
+
+           0       0.95      0.98      0.96     91472
+           1       0.79      0.62      0.70     12784
+
+   micro avg       0.93      0.93      0.93    104256
+   macro avg       0.87      0.80      0.83    104256
+weighted avg       0.93      0.93      0.93    104256
+
+accuracy: 0.9338263505217925
+precision: 0.7933991424867883
+recall: 0.622418648310388
+f1: 0.6975847104720992
+log loss: 2.285572773887011
+DEBUG:matplotlib.axes._base:update_title_pos
+DEBUG:matplotlib.axes._base:update_title_pos
+epoch 2 validation accuracy: 93.8455%
+iteration 50000 validation accuracy: 93.8196%98
+iteration 100000 validation accuracy: 93.9059%09
+epoch 3, sample 104256 of 104256, loss: 0.042037
+epoch 3 (Gao's) training accuracy: 93.8344%
+correct: 97828
+DEBUG:root:None
+total: 104256
+DEBUG:root:None
+[[89646  1826]
+ [ 4602  8182]]
+              precision    recall  f1-score   support
+
+           0       0.95      0.98      0.97     91472
+           1       0.82      0.64      0.72     12784
+
+   micro avg       0.94      0.94      0.94    104256
+   macro avg       0.88      0.81      0.84    104256
+weighted avg       0.93      0.94      0.94    104256
+
+accuracy: 0.9383440761203192
+precision: 0.8175459632294164
+recall: 0.6400187734668336
+f1: 0.717971217971218
+log loss: 2.129534172914686
+DEBUG:matplotlib.axes._base:update_title_pos
+DEBUG:matplotlib.axes._base:update_title_pos
+epoch 3 validation accuracy: 93.9059%
+iteration 50000 validation accuracy: 93.8282%40
+iteration 100000 validation accuracy: 93.9577%08
+epoch 4, sample 104256 of 104256, loss: 0.005366
+epoch 4 (Gao's) training accuracy: 94.0694%
+correct: 98073
+DEBUG:root:None
+total: 104256
+DEBUG:root:None
+[[89763  1709]
+ [ 4474  8310]]
+              precision    recall  f1-score   support
+
+           0       0.95      0.98      0.97     91472
+           1       0.83      0.65      0.73     12784
+
+   micro avg       0.94      0.94      0.94    104256
+   macro avg       0.89      0.82      0.85    104256
+weighted avg       0.94      0.94      0.94    104256
+
+accuracy: 0.9406940607734806
+precision: 0.8294240942209802
+recall: 0.6500312891113892
+f1: 0.7288514669122483
+log loss: 2.048367681109394
+DEBUG:matplotlib.axes._base:update_title_pos
+DEBUG:matplotlib.axes._base:update_title_pos
+epoch 4 validation accuracy: 93.8628%
+iteration 50000 validation accuracy: 93.8369%37
+iteration 100000 validation accuracy: 93.8973%11
+epoch 5, sample 104256 of 104256, loss: 0.031954
+epoch 5 (Gao's) training accuracy: 94.1385%
+correct: 98145
+DEBUG:root:None
+total: 104256
+DEBUG:root:None
+[[89786  1686]
+ [ 4425  8359]]
+              precision    recall  f1-score   support
+
+           0       0.95      0.98      0.97     91472
+           1       0.83      0.65      0.73     12784
+
+   micro avg       0.94      0.94      0.94    104256
+   macro avg       0.89      0.82      0.85    104256
+weighted avg       0.94      0.94      0.94    104256
+
+accuracy: 0.9413846685082873
+precision: 0.8321553011448481
+recall: 0.6538642052565707
+f1: 0.7323141618117307
+log loss: 2.0245147585804806
+DEBUG:matplotlib.axes._base:update_title_pos
+DEBUG:matplotlib.axes._base:update_title_pos
+epoch 5 validation accuracy: 93.8541%
+iteration 50000 validation accuracy: 93.7592%98
+iteration 100000 validation accuracy: 93.8541%87
+epoch 6, sample 104256 of 104256, loss: 0.009313
+epoch 6 (Gao's) training accuracy: 94.1999%
+correct: 98209
+DEBUG:root:None
+total: 104256
+DEBUG:root:None
+[[89878  1594]
+ [ 4453  8331]]
+              precision    recall  f1-score   support
+
+           0       0.95      0.98      0.97     91472
+           1       0.84      0.65      0.73     12784
+
+   micro avg       0.94      0.94      0.94    104256
+   macro avg       0.90      0.82      0.85    104256
+weighted avg       0.94      0.94      0.94    104256
+
+accuracy: 0.9419985420503376
+precision: 0.8393954659949622
+recall: 0.6516739674593242
+f1: 0.733717909198996
+log loss: 2.0033116119775234
+DEBUG:matplotlib.axes._base:update_title_pos
+DEBUG:matplotlib.axes._base:update_title_pos
+epoch 6 validation accuracy: 93.8714%
+iteration 50000 validation accuracy: 93.7937%10
+iteration 100000 validation accuracy: 93.8800%51
+epoch 7, sample 104256 of 104256, loss: 0.028642
+epoch 7 (Gao's) training accuracy: 94.2133%
+correct: 98223
+DEBUG:root:None
+total: 104256
+DEBUG:root:None
+[[89882  1590]
+ [ 4443  8341]]
+              precision    recall  f1-score   support
+
+           0       0.95      0.98      0.97     91472
+           1       0.84      0.65      0.73     12784
+
+   micro avg       0.94      0.94      0.94    104256
+   macro avg       0.90      0.82      0.85    104256
+weighted avg       0.94      0.94      0.94    104256
+
+accuracy: 0.9421328268876611
+precision: 0.8398952774141577
+recall: 0.6524561952440551
+f1: 0.7344045784723751
+log loss: 1.9986735473297481
+DEBUG:matplotlib.axes._base:update_title_pos
+DEBUG:matplotlib.axes._base:update_title_pos
+epoch 7 validation accuracy: 93.8541%
+iteration 50000 validation accuracy: 93.8196%55
+iteration 100000 validation accuracy: 93.8973%63
+epoch 8, sample 104256 of 104256, loss: 0.037883
+epoch 8 (Gao's) training accuracy: 94.3006%
+correct: 98314
+DEBUG:root:None
+total: 104256
+DEBUG:root:None
+[[89911  1561]
+ [ 4381  8403]]
+              precision    recall  f1-score   support
+
+           0       0.95      0.98      0.97     91472
+           1       0.84      0.66      0.74     12784
+
+   micro avg       0.94      0.94      0.94    104256
+   macro avg       0.90      0.82      0.85    104256
+weighted avg       0.94      0.94      0.94    104256
+
+accuracy: 0.9430056783302639
+precision: 0.8433360096346849
+recall: 0.6573060075093867
+f1: 0.7387902233163356
+log loss: 1.968526104110534
+DEBUG:matplotlib.axes._base:update_title_pos
+DEBUG:matplotlib.axes._base:update_title_pos
+epoch 8 validation accuracy: 93.8541%
+iteration 50000 validation accuracy: 93.8196%83
+iteration 100000 validation accuracy: 93.9318%06
+epoch 9, sample 104256 of 104256, loss: 0.007008
+epoch 9 (Gao's) training accuracy: 94.3332%
+correct: 98348
+DEBUG:root:None
+total: 104256
+DEBUG:root:None
+[[89940  1532]
+ [ 4376  8408]]
+              precision    recall  f1-score   support
+
+           0       0.95      0.98      0.97     91472
+           1       0.85      0.66      0.74     12784
+
+   micro avg       0.94      0.94      0.94    104256
+   macro avg       0.90      0.82      0.85    104256
+weighted avg       0.94      0.94      0.94    104256
+
+accuracy: 0.9433317986494782
+precision: 0.8458752515090543
+recall: 0.6576971214017522
+f1: 0.740010561520859
+log loss: 1.9572620849101774
+DEBUG:matplotlib.axes._base:update_title_pos
+DEBUG:matplotlib.axes._base:update_title_pos
+epoch 9 validation accuracy: 93.8196%
+iteration 50000 validation accuracy: 93.7937%109
+iteration 100000 validation accuracy: 93.9145%123
+epoch 10, sample 104256 of 104256, loss: 0.009719
+epoch 10 (Gao's) training accuracy: 94.2900%
+correct: 98303
+DEBUG:root:None
+total: 104256
+DEBUG:root:None
+[[89941  1531]
+ [ 4422  8362]]
+              precision    recall  f1-score   support
+
+           0       0.95      0.98      0.97     91472
+           1       0.85      0.65      0.74     12784
+
+   micro avg       0.94      0.94      0.94    104256
+   macro avg       0.90      0.82      0.85    104256
+weighted avg       0.94      0.94      0.94    104256
+
+accuracy: 0.9429001688152241
+precision: 0.8452441119983827
+recall: 0.65409887359199
+f1: 0.7374873219561671
+log loss: 1.9721700435712952
+DEBUG:matplotlib.axes._base:update_title_pos
+DEBUG:matplotlib.axes._base:update_title_pos
+epoch 10 validation accuracy: 93.8800%

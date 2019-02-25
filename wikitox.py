@@ -14,12 +14,12 @@ import msgpack
 from sklearn.preprocessing import LabelEncoder, LabelBinarizer, OneHotEncoder
 from sklearn.model_selection import train_test_split
 import extract_features as ef
-import tf_cnn as cnn
+import tf_gao_text_cnn as cnn
 
 
 # GPU check.
 # Ensure tensorflow can find CUDA device.
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 # Fix for weird MacOS bug.
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
@@ -264,7 +264,7 @@ def main(argv):
     data_path = Path(r'data') / 'cache' / 'wikimedia-personal-attacks' / \
         'wikimedia-personal-attacks-data.bin'
     # data_path = Path(r'data') / 'course_reviews' / 'course-reviews-data.bin'
-    with open(data_path, 'rb') as f:
+    with open(str(data_path), 'rb') as f:
         data = msgpack.unpack(f, raw=False)
 
     # Number of docs, which is also the number of observations or samples,
@@ -315,14 +315,16 @@ def main(argv):
     num_classes = len(le.classes_)
 
     # One-Hot encode if less than 3 classes to avoid
-    # tensor shape mismatches.
-    enc = OneHotEncoder(handle_unknown='ignore')
-    enc.fit(y.reshape(-1, 1))
-    y_bin = enc.transform(y.reshape(-1, 1)).toarray()
-
-    # Binarize labels in a one-vs-all fashion.
-    # lb = LabelBinarizer()
-    # y_bin = lb.fit_transform(y)
+    # tensor shape mismatch.
+    if num_classes < 3:
+        enc = OneHotEncoder(handle_unknown='ignore')
+        enc.fit(y.reshape(-1, 1))
+        y_bin = enc.transform(y.reshape(-1, 1)).toarray()
+    else:
+        # Binarize labels in a one-vs-all fashion if three or
+        # more classes.
+        lb = LabelBinarizer()
+        y_bin = lb.fit_transform(y)
 
     del labels
 
@@ -336,7 +338,7 @@ def main(argv):
 
     nn = cnn.GaoTextCNN(vocab, num_classes, max_words)
 
-    nn.train(X_train, y_train, epochs=5, validation_data=(X_test, y_test))
+    nn.train(X_train, y_train, epochs=num_epochs, validation_data=(X_test, y_test))
 
 
     # ================================ +

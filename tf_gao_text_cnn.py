@@ -3,7 +3,16 @@ import tensorflow as tf
 import sys
 import time
 from pathlib import Path
-import getopt
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import classification_report
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import recall_score
+from sklearn.metrics import f1_score
+from sklearn.metrics import log_loss
+from sklearn.metrics import roc_curve
+from sklearn.metrics import roc_auc_score
+import matplotlib.pyplot as plt
 import logging
 
 
@@ -39,7 +48,6 @@ class GaoTextCNN(object):
     def __init__(self, embedding_matrix, num_classes,
                  max_words, num_filters=300, dropout_keep=0.5):
 
-        #
         self.vocab = embedding_matrix
 
         # Number of columns in embedding matrix.
@@ -76,7 +84,10 @@ class GaoTextCNN(object):
             tf.get_variable('embeddings', initializer=self.embeddings,
                             dtype=tf.float32), self.doc_input_reduced)
 
-        # Word convolutions.
+        # Convolutional layers.
+
+
+
         with tf.name_scope("conv-maxpool-3"):
             conv3 = tf.layers.conv1d(self.word_embeds, num_filters, 3, padding='same',
                                      activation=tf.nn.relu,
@@ -182,33 +193,40 @@ class GaoTextCNN(object):
         with self.sess as sess:
             # Output directory for models and summaries
             timestamp = str(int(time.time()))
-            log_path = Path(r'./logs/tensorboard/train') / timestamp
-            train_writer = tf.summary.FileWriter(log_path, sess.graph)
 
             # Track best model for saving.
             prevbest = 0
             for i in range(epochs):
                 # TODO FEATURE Add gathering of stats for confusion matrix.
-                correct = 0.
+                correct = 0
+                y_pred = []
+                y_true = []
                 start = time.time()
 
                 # Train.
                 counter = 0
                 for doc in range(len(data)):
                     counter += 1
-                    merge = tf.summary.merge_all()
+                    #merge = tf.summary.merge_all()
 
                     inputval = self._list_to_numpy(data[doc])
                     feed_dict = {self.doc_input: inputval, self.labels: labels[doc],
                                  self.dropout: self.dropout_keep}
-                    summary, pred, cost, _ = self.sess.run(
-                        [merge, self.prediction, self.loss, self.optimizer],
+                    pred, cost, _ = self.sess.run(
+                        [self.prediction, self.loss, self.optimizer],
                         feed_dict=feed_dict)
 
-                    train_writer.add_summary(summary, counter)
-
+                    # Collect raw stats for calculating metrics.
                     if np.argmax(pred) == np.argmax(labels[doc]):
                         correct += 1
+
+                    # Collect predictions for calculating metrics with sklearn.
+                    # Build array of y_pred.
+                    # Insert each prediction at the same index of its label
+                    # in the y_true array.
+                    y_pred.insert(doc, np.argmax(pred))
+                    y_true.insert(doc, np.argmax(labels[doc]))
+
                     sys.stdout.write("epoch %i, sample %i of %i, loss: %f      \r" \
                                      % (i + 1, doc + 1, len(data), cost))
                     sys.stdout.flush()
@@ -221,9 +239,44 @@ class GaoTextCNN(object):
                 print()
                 # print("training time: %.2f" % (time.time()-start))
                 trainscore = correct / len(data)
-                print("epoch %i training accuracy: %.4f%%" % (i + 1, trainscore * 100))
+                print("epoch %i (Gao's) training accuracy: %.4f%%" % (i + 1, trainscore * 100))
+
+                # Log metrics per epoch.
+                # TODO Print a clean, well-organized report.
+                # TODO Also generate a CSV for easy analysis.
+                logging.debug(print('correct:', correct))
+                logging.debug(print('total:', counter))
+
+                print(confusion_matrix(y_true, y_pred))
+                print(classification_report(y_true, y_pred))
+                print('accuracy:', accuracy_score(y_true, y_pred))
+                print('precision:', precision_score(y_true, y_pred))
+                print('recall:', recall_score(y_true, y_pred))
+                print('f1:', f1_score(y_true, y_pred))
+                print('log loss:', log_loss(y_true, y_pred))
+
+                # Log ROC Curve.
+                fpr_RF, tpr_RF, thresholds_RF = roc_curve(y_true, y_pred)
+                fpr_LR, tpr_LR, thresholds_LR = roc_curve(y_true, y_pred)
+
+                # Log AUC Score.
+                auc_RF = roc_auc_score(y_true, y_pred)
+                auc_LR = roc_auc_score(y_true, y_pred)
+
+                # TODO Produce plot?
+                plt.plot(fpr_RF, tpr_RF, 'r-', label='RF AUC: %.3f' % auc_RF)
+                plt.plot(fpr_LR, tpr_LR, 'b-', label='LR AUC: %.3f' % auc_LR)
+                plt.plot([0, 1], [0, 1], 'k-', label='random')
+                plt.plot([0, 0, 1, 1], [0, 1, 1, 1], 'g-', label='perfect')
+                plt.legend()
+                plt.xlabel('False Positive Rate')
+                plt.ylabel('True Positive Rate')
+                plt.savefig(str(Path(r'./logs/plots') / timestamp + '-epoch-' + i))
+                plt.clf()
 
                 # Validate.
+                # TODO Convert this to use CV splitting like
+                # the course reviews project.
                 if validation_data:
                     score = self.score(validation_data[0], validation_data[1])
                     print("epoch %i validation accuracy: %.4f%%" % (i + 1, score * 100))
@@ -232,6 +285,8 @@ class GaoTextCNN(object):
                 if savebest and score >= prevbest:
                     prevbest = score
                     self.save(filepath)
+
+
 
     def predict(self, data):
         """

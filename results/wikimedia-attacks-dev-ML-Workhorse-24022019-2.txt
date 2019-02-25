@@ -1,0 +1,65 @@
+(tf_gpu) ubuntu@ip-172-31-35-157:~/projects/Wikimedia-Toxicity-Text-Classification$ ./wikitox.py -v -e 1
+/home/ubuntu/miniconda3/envs/tf_gpu/lib/python3.5/site-packages/requests/__init__.py:91: RequestsDependencyWarning: urllib3 (1.24.1) or chardet (3.0.4) doesn't match a supported version!
+  RequestsDependencyWarning)
+2019-02-24 16:30:28.208995: I tensorflow/core/platform/cpu_feature_guard.cc:137] Your CPU supports instructions that this TensorFlow binary was not compiled to use: SSE4.1 SSE4.2 AVX AVX2 FMA
+2019-02-24 16:30:30.784058: I tensorflow/stream_executor/cuda/cuda_gpu_executor.cc:892] successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
+2019-02-24 16:30:30.784433: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1030] Found device 0 with properties:
+name: Tesla K80 major: 3 minor: 7 memoryClockRate(GHz): 0.8235
+pciBusID: 0000:00:1e.0
+totalMemory: 11.17GiB freeMemory: 11.10GiB
+2019-02-24 16:30:30.784468: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1120] Creating TensorFlow device (/device:GPU:0) -> (device: 0, name: Tesla K80, pci bus id: 0000:00:1e.0, compute capability: 3.7)
+Found GPU at : /device:GPU:0
+loading data
+converting data to arrays
+processing record 115841 of 115841
+building text_cnn
+2019-02-24 16:30:41.770712: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1120] Creating TensorFlow device (/device:GPU:0) -> (device: 0, name: Tesla K80, pci bus id: 0000:00:1e.0, compute capability: 3.7)
+training network on 104256 documents, validating on 11585 documents
+iteration 50000 validation accuracy: 93.1377%75
+iteration 100000 validation accuracy: 93.6987%89
+epoch 1, sample 104256 of 104256, loss: 0.028269
+epoch 1 (Gao's) training accuracy: 91.5679%
+correct: 95465
+DEBUG:root:None
+total: 104256
+DEBUG:root:None
+[[88811  2661]
+ [ 6130  6654]]
+              precision    recall  f1-score   support
+
+           0       0.94      0.97      0.95     91472
+           1       0.71      0.52      0.60     12784
+
+   micro avg       0.92      0.92      0.92    104256
+   macro avg       0.82      0.75      0.78    104256
+weighted avg       0.91      0.92      0.91    104256
+
+accuracy: 0.9156787139349294
+precision: 0.7143317230273752
+recall: 0.52049436795995
+f1: 0.6021991945336894
+log loss: 2.912374453426389
+DEBUG:matplotlib.axes._base:update_title_pos
+DEBUG:matplotlib.font_manager:findfont: Matching :family=sans-serif:style=normal:variant=normal:weight=normal:stretch=normal:size=10.0 to DejaVu Sans ('/home/ubuntu/miniconda3/envs/tf_gpu/lib/python3.5/site-packages/matplotlib/mpl-data/fonts/ttf/DejaVuSans.ttf') with score of 0.050000.
+Traceback (most recent call last):
+  File "./wikitox.py", line 358, in <module>
+    main(sys.argv[1:])
+  File "./wikitox.py", line 341, in main
+    nn.train(X_train, y_train, epochs=num_epochs, validation_data=(X_test, y_test))
+  File "/home/ubuntu/projects/Wikimedia-Toxicity-Text-Classification/tf_gao_text_cnn.py", line 274, in train
+    plt.savefig(str(Path(r'./logs/plots') / timestamp))
+  File "/home/ubuntu/miniconda3/envs/tf_gpu/lib/python3.5/site-packages/matplotlib/pyplot.py", line 688, in savefig
+    res = fig.savefig(*args, **kwargs)
+  File "/home/ubuntu/miniconda3/envs/tf_gpu/lib/python3.5/site-packages/matplotlib/figure.py", line 2097, in savefig
+    self.canvas.print_figure(fname, **kwargs)
+  File "/home/ubuntu/miniconda3/envs/tf_gpu/lib/python3.5/site-packages/matplotlib/backend_bases.py", line 2075, in print_figure
+    **kwargs)
+  File "/home/ubuntu/miniconda3/envs/tf_gpu/lib/python3.5/site-packages/matplotlib/backends/backend_agg.py", line 521, in print_png
+    cbook.open_file_cm(filename_or_obj, "wb") as fh:
+  File "/home/ubuntu/miniconda3/envs/tf_gpu/lib/python3.5/contextlib.py", line 59, in __enter__
+    return next(self.gen)
+  File "/home/ubuntu/miniconda3/envs/tf_gpu/lib/python3.5/site-packages/matplotlib/cbook/__init__.py", line 407, in open_file_cm
+    fh, opened = to_filehandle(path_or_file, mode, True, encoding)
+  File "/home/ubuntu/miniconda3/envs/tf_gpu/lib/python3.5/site-packages/matplotlib/cbook/__init__.py", line 392, in to_filehandle
+    fh = open(fname, flag, encoding=encoding)
+FileNotFoundError: [Errno 2] No such file or directory: 'logs/plots/1551025842.png'
