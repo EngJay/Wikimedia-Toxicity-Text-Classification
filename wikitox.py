@@ -49,8 +49,17 @@ def main(argv):
     # Default data directory.
     data_dir = r'data'
 
+    # Default embeddings path.
+    embeddings_path = Path('')
+
+    # Default data path.
+    data_path = Path('')
+
     # Data preparation skipped by default.
     data_prep_needed = False
+
+    # Label encoding skipped by default
+    encode_labels_needed = False
 
     # Default number of filters.
     # TODO Appropriate default number of filters?
@@ -75,17 +84,21 @@ def main(argv):
 
     # Parse cli args.
     try:
-        opts, args = getopt.getopt(argv, "dhve:c:",
-                                   ["num_epochs=", "num_cv_splits="])
+        opts, args = getopt.getopt(argv, "dhve:c:m:n:",
+                                   ["num_epochs=", "num_cv_splits=",
+                                    "embeddings_path=", "data_path="])
     except getopt.GetoptError:
-        print('train.py -e <num_epochs> -c <num_cv_splits>')
+        print('train.py -e <num_epochs> -c <num_cv_splits> -m <embeddings_path> '
+              + '-n <data_path>')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
             print('train.py -e <num_epochs> -c <num_cv_splits>\n'
                   + 'Defaults:\n'
                   + '  num_epochs=50\t\tNumber of epochs\n'
-                  + '  num_cv_splits=50\tNumber of cross-validation splits')
+                  + '  num_cv_splits=50\tNumber of cross-validation splits\n'
+                  + '  embeddings_path=\tPath to word embeddings\n'
+                  + '  data_path=\tPath to data\n')
             sys.exit()
         elif opt == '-v':
             logging.getLogger().setLevel(logging.DEBUG)
@@ -96,13 +109,17 @@ def main(argv):
         elif opt in ("-c", "--num_cv_splits"):
             num_cv_runs = int(arg)
             num_cv_splits = int(arg)
+        elif opt in ("-m", "--embeddings_path"):
+            embeddings_path = Path(str(arg))
+        elif opt in ("-n", "--data_path"):
+            data_path = Path(str(arg))
+        elif opt == '-l':
+            encode_labels_needed = True
 
     # Set vars with default or passed-in values.
 
-    # Path to data directory.
-    data_path = Path(data_dir)
-
     # Skip data preparation by default.
+    # TODO Move all of this into a dataset-specific data_prep_DATASET script.
     if data_prep_needed:
 
         # Get the data, create dataframes from the tab-separated files.
@@ -254,15 +271,15 @@ def main(argv):
     # Read in saved files.
     print("loading data")
     # TODO Add cached embeddings path to cli args.
-    embeddings_path = Path(r'data') / 'cache' / 'wikimedia-personal-attacks' / \
-        'wikimedia-personal-attacks-embeddings.npy'
+    # embeddings_path = Path(r'data') / 'cache' / 'wikimedia-personal-attacks' / \
+    #     'wikimedia-personal-attacks-embeddings.npy'
     # embeddings_path = \
     #    Path(r'data') / 'cache' / 'course-reviews-embeddings.npy'
     vocab = np.load(embeddings_path)
 
     # TODO Add data path to cli args.
-    data_path = Path(r'data') / 'cache' / 'wikimedia-personal-attacks' / \
-        'wikimedia-personal-attacks-data.bin'
+    # data_path = Path(r'data') / 'cache' / 'wikimedia-personal-attacks' / \
+    #     'wikimedia-personal-attacks-data.bin'
     # data_path = Path(r'data') / 'course_reviews' / 'course-reviews-data.bin'
     with open(str(data_path), 'rb') as f:
         data = msgpack.unpack(f, raw=False)
@@ -305,33 +322,63 @@ def main(argv):
     del data
     print()
 
-    # Label encoder.
-    # Encode labels with value between 0 and n_classes-1,
-    # so the 1 to 5 star ratings become 0 to 4.
-    le = LabelEncoder()
-    y = le.fit_transform(labels)
+    if encode_labels_needed:
+        # Label encoder.
+        # Encode labels with value between 0 and n_classes-1,
+        # so for example 1 to 5 star ratings become 0 to 4.
+        le = LabelEncoder()
+        y = le.fit_transform(labels)
 
-    # Number of classes.
-    num_classes = len(le.classes_)
+        # Number of classes.
+        num_classes = len(le.classes_)
 
-    # One-Hot encode if less than 3 classes to avoid
-    # tensor shape mismatch.
-    if num_classes < 3:
-        enc = OneHotEncoder(handle_unknown='ignore')
-        enc.fit(y.reshape(-1, 1))
-        y_bin = enc.transform(y.reshape(-1, 1)).toarray()
+        # One-Hot encode if less than 3 classes to avoid
+        # tensor shape mismatch.
+        if num_classes < 3:
+            enc = OneHotEncoder(handle_unknown='ignore')
+            enc.fit(y.reshape(-1, 1))
+            y_bin = enc.transform(y.reshape(-1, 1)).toarray()
+        else:
+            # Binarize labels in a one-vs-all fashion if three or
+            # more classes.
+            lb = LabelBinarizer()
+            y_bin = lb.fit_transform(y)
+
+        del labels
     else:
-        # Binarize labels in a one-vs-all fashion if three or
-        # more classes.
-        lb = LabelBinarizer()
-        y_bin = lb.fit_transform(y)
+        # Get number of classes from existing encoded labels.
+        num_classes = len(max(labels, key=len))
 
-    del labels
+        # For sake of consistency, use same name for existing encoded labels
+        y_bin = labels
+        y = labels
+
+    # TODO Add crossvalidation.
+
+    # num_cv_runs = 10
+    # num_cv_spits = 10
+    #
+    # StratifiedKFold object
+    # cv = KFold(CV_SPLITS, True)
+    # cv = StratifiedKFold(num_cv_splits, True)
+    #
+    # for train, test in cv.split(features, labels.argmax(axis=1)):
+    #     split_num += 1
+    #     logging.info('CV Split {0:d}'.format(split_num))
+    #
+    #     if split_num == num_cv_runs:
+    #         break
 
     # Test train split.
-    X_train, X_test, y_train, y_test = train_test_split(docs, y_bin, test_size=0.1,
-                                                        random_state=1234,
-                                                        stratify=y)
+    if encode_labels_needed:
+        X_train, X_test, y_train, y_test = train_test_split(docs, y_bin,
+                                                            test_size=0.1,
+                                                            random_state=1234,
+                                                            stratify=y)
+    else:
+        X_train, X_test, y_train, y_test = train_test_split(docs, y_bin,
+                                                            test_size=0.1,
+                                                            random_state=1234)
 
     # Create and train nn.
     print("building text_cnn")

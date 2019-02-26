@@ -7,7 +7,8 @@
 
 # Downloadable datasets.
 data/Wikimedia*
-data/jigsaw*
+data/jigsaw-toxic-comment-classification-challenge/*
+!data/jigsaw-toxic-comment-classification-challenge/data_prep_jigsaw.py
 
 # Downloadable pretrained embeddings.
 data/pretrained_embeddings/GoogleNews-vectors-negative300.bin
