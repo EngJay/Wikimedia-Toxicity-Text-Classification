@@ -215,13 +215,15 @@ def extract_features(csv_path):
                 maxdoclen = len(sentences)
 
             # Add label
+            # Only adding the 'insult' labels for comparison to the personal attacks
+            # attacks classification of the raw wikimedia data.
             label = []
-            label.append(line['toxic'])
-            label.append(line['severe_toxic'])
-            label.append(line['obscene'])
-            label.append(line['threat'])
+            # label.append(line['toxic'])
+            # label.append(line['severe_toxic'])
+            # label.append(line['obscene'])
+            # label.append(line['threat'])
             label.append(line['insult'])
-            label.append(line['identity_hate'])
+            # label.append(line['identity_hate'])
             labels.append(label)
 
     # Use all processed raw text to train word2vec.

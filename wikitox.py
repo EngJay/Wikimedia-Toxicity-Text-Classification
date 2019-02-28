@@ -12,14 +12,14 @@ import pandas as pd
 import tensorflow as tf
 import msgpack
 from sklearn.preprocessing import LabelEncoder, LabelBinarizer, OneHotEncoder
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedKFold
 import extract_features as ef
 import tf_gao_text_cnn as cnn
 
 
 # GPU check.
 # Ensure tensorflow can find CUDA device.
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0" # TODO Determine if this affects GPU use.
 # Fix for weird MacOS bug.
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
@@ -56,6 +56,7 @@ def main(argv):
     data_path = Path('')
 
     # Data preparation skipped by default.
+    # TODO eliminate after moving data prep code out of this.
     data_prep_needed = False
 
     # Label encoding skipped by default
@@ -74,6 +75,7 @@ def main(argv):
 
     # Default number of votes to decide label based on the annotations of the
     # ten workers who annotated the dataset.
+    # TODO Move this along with the data prep code to dataset-specific script.
     min_num_votes = 6
 
     # ================================= +
@@ -84,7 +86,7 @@ def main(argv):
 
     # Parse cli args.
     try:
-        opts, args = getopt.getopt(argv, "dhve:c:m:n:",
+        opts, args = getopt.getopt(argv, "ldhve:c:m:n:",
                                    ["num_epochs=", "num_cv_splits=",
                                     "embeddings_path=", "data_path="])
     except getopt.GetoptError:
@@ -219,11 +221,11 @@ def main(argv):
 
         logging.debug(print(features.head()))
 
-        # =================================================== +
+        # ===================================================== +
+        #                                                      /
+        #    G E N E R A T E  W O R D  E M B E D D I N G S    /
         #                                                    /
-        #    P R E P A R E  W O R D  E M B E D D I N G S    /
-        #                                                  /
-        # ----------------------------------------------- +
+        # ------------------------------------------------- +
 
         # Build vocabulary and word embeddings from source if needed.
 
@@ -262,25 +264,17 @@ def main(argv):
     # dropout = 0.5
     # conv_dropout = 0.1
 
-    # ============================================= +
-    #                                              /
-    #    B U I L D  N E U R A L  N E T W O R K    /
-    #                                            /
-    # ----------------------------------------- +
+    # ======================================== +
+    #                                         /
+    #    L O A D  &  F O R M A T  D A T A    /
+    #                                       /
+    # ------------------------------------ +
 
     # Read in saved files.
-    print("loading data")
-    # TODO Add cached embeddings path to cli args.
-    # embeddings_path = Path(r'data') / 'cache' / 'wikimedia-personal-attacks' / \
-    #     'wikimedia-personal-attacks-embeddings.npy'
-    # embeddings_path = \
-    #    Path(r'data') / 'cache' / 'course-reviews-embeddings.npy'
+    logging.info('Loading data.')
     vocab = np.load(embeddings_path)
 
-    # TODO Add data path to cli args.
-    # data_path = Path(r'data') / 'cache' / 'wikimedia-personal-attacks' / \
-    #     'wikimedia-personal-attacks-data.bin'
-    # data_path = Path(r'data') / 'course_reviews' / 'course-reviews-data.bin'
+    # Load features and labels.
     with open(str(data_path), 'rb') as f:
         data = msgpack.unpack(f, raw=False)
 
@@ -289,7 +283,8 @@ def main(argv):
     num_docs = len(data)
 
     # Convert data to numpy arrays.
-    print("converting data to arrays")
+    logging.info('Converting data to arrays.')
+
     # For keeping number of words in longest document in data.
     max_words = 0
 
@@ -314,33 +309,34 @@ def main(argv):
         # Add label to label array at same index.
         labels.append(data[i]['label'])
 
-        # Track maximum number of word in document.
+        # Track maximum number of words in document.
         if len(doc) > max_words:
             max_words = len(doc)
 
-    # Delete read-in data from memory.
     del data
     print()
 
     if encode_labels_needed:
         # Label encoder.
-        # Encode labels with value between 0 and n_classes-1,
-        # so for example 1 to 5 star ratings become 0 to 4.
+        #   Encode labels with value between 0 and n_classes-1,
+        #   so for example 1 to 5 star ratings become 0 to 4.
         le = LabelEncoder()
         y = le.fit_transform(labels)
 
         # Number of classes.
         num_classes = len(le.classes_)
 
-        # One-Hot encode if less than 3 classes to avoid
-        # tensor shape mismatch.
+        # One-Hot encode and reshape if less than 3 classes to avoid shape mismatch.
+        #  - This is necessary because LabelBinarizer will put the labels into
+        #    the shape (,1) when passed data with binary labels, whereas the logic
+        #    of Gao's network requires even binary labels to be in the form
+        #    (,2), just as One-Hot even though the labels are binary.
         if num_classes < 3:
             enc = OneHotEncoder(handle_unknown='ignore')
             enc.fit(y.reshape(-1, 1))
             y_bin = enc.transform(y.reshape(-1, 1)).toarray()
         else:
-            # Binarize labels in a one-vs-all fashion if three or
-            # more classes.
+            # Binarize labels in one-vs-all fashion if three or more classes.
             lb = LabelBinarizer()
             y_bin = lb.fit_transform(y)
 
@@ -353,40 +349,41 @@ def main(argv):
         y_bin = labels
         y = labels
 
-    # TODO Add crossvalidation.
-
-    # num_cv_runs = 10
-    # num_cv_spits = 10
-    #
-    # StratifiedKFold object
-    # cv = KFold(CV_SPLITS, True)
-    # cv = StratifiedKFold(num_cv_splits, True)
-    #
-    # for train, test in cv.split(features, labels.argmax(axis=1)):
-    #     split_num += 1
-    #     logging.info('CV Split {0:d}'.format(split_num))
-    #
-    #     if split_num == num_cv_runs:
-    #         break
+    # ====================================== +
+    #                                       /
+    #    C R O S S  V A L I D A T I O N    /
+    #                                     /
+    # ---------------------------------- +
 
     # Test train split.
-    if encode_labels_needed:
-        X_train, X_test, y_train, y_test = train_test_split(docs, y_bin,
-                                                            test_size=0.1,
-                                                            random_state=1234,
-                                                            stratify=y)
-    else:
-        X_train, X_test, y_train, y_test = train_test_split(docs, y_bin,
-                                                            test_size=0.1,
-                                                            random_state=1234)
+    # if encode_labels_needed:
+    #     X_train, X_test, y_train, y_test = train_test_split(docs, y_bin,
+    #                                                         test_size=0.1,
+    #                                                         random_state=1234,
+    #                                                         stratify=y)
+    # else:
+    #     X_train, X_test, y_train, y_test = train_test_split(docs, y_bin,
+    #                                                         test_size=0.1,
+    #                                                         random_state=1234)
 
     # Create and train nn.
-    print("building text_cnn")
+    logging.info("Building NN.")
 
+    # Cross-validation.
+    #   - K-Fold splits K times without considering distribution of classes.
+    #   - Stratified K-Fold splits K times while ensuring distribution of classes is
+    #     consistent across folds.
+    #
+    # cv = KFold(CV_SPLITS, True)
+    cv = StratifiedKFold(num_cv_splits, True)
+
+    # In order to select by set of indices, convert to numpy array.
+    # TODO Should this conversion to np array happen earlier?
+    docs_arr = np.array(docs)
+    y_arr = np.array(y_bin)
+
+    # Create instance of the neural network.
     nn = cnn.GaoTextCNN(vocab, num_classes, max_words)
-
-    nn.train(X_train, y_train, epochs=num_epochs, validation_data=(X_test, y_test))
-
 
     # ================================ +
     #                                 /
@@ -394,12 +391,30 @@ def main(argv):
     #                               /
     # ---------------------------- +
 
+    logging.info("Training NN.")
 
-    # =============== +
-    #                /
-    #    METRICS    /
-    #              /
-    # ----------- +
+    # Train the NN num_epochs x num_cv_runs.
+    #   Default: 10 epochs x 10 CV splits = 100 training sessions.
+    split_num = 0
+    for train, test in cv.split(docs, y):
+        split_num += 1
+        logging.info('CV Split {0:d}'.format(split_num))
+
+        nn.train(docs_arr[train], y_arr[train],
+                 epochs=num_epochs,
+                 cv_split_num=split_num,
+                 validation_data=(docs_arr[test], y_arr[test]))
+
+        if split_num == num_cv_runs:
+            break
+
+    # ===================== +
+    #                      /
+    #    M E T R I C S    /
+    #                    /
+    # ----------------- +
+
+    # TODO Move metrics here? Could collect them in a dictionary and return?
 
 if __name__ == '__main__':
     main(sys.argv[1:])

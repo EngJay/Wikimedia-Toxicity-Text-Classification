@@ -2,7 +2,10 @@ import numpy as np
 import tensorflow as tf
 import sys
 import time
+import csv
+import logging
 from pathlib import Path
+import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import classification_report
 from sklearn.metrics import accuracy_score
@@ -12,8 +15,6 @@ from sklearn.metrics import f1_score
 from sklearn.metrics import log_loss
 from sklearn.metrics import roc_curve
 from sklearn.metrics import roc_auc_score
-import matplotlib.pyplot as plt
-import logging
 
 
 class GaoTextCNN(object):
@@ -47,6 +48,9 @@ class GaoTextCNN(object):
 
     def __init__(self, embedding_matrix, num_classes,
                  max_words, num_filters=300, dropout_keep=0.5):
+
+        # Use epoch time as run ID num.
+        self.run_id = time.time()
 
         self.vocab = embedding_matrix
 
@@ -85,8 +89,6 @@ class GaoTextCNN(object):
                             dtype=tf.float32), self.doc_input_reduced)
 
         # Convolutional layers.
-
-
 
         with tf.name_scope("conv-maxpool-3"):
             conv3 = tf.layers.conv1d(self.word_embeds, num_filters, 3, padding='same',
@@ -157,7 +159,7 @@ class GaoTextCNN(object):
         else:
             raise Exception("invalid input type")
 
-    def train(self, data, labels, epochs=30,
+    def train(self, data, labels, epochs=30, cv_split_num=None,
               validation_data=None, savebest=False, filepath=None):
         """
         train network on given data
@@ -239,7 +241,7 @@ class GaoTextCNN(object):
                 print()
                 # print("training time: %.2f" % (time.time()-start))
                 trainscore = correct / len(data)
-                print("epoch %i (Gao's) training accuracy: %.4f%%" % (i + 1, trainscore * 100))
+                print("epoch %i (Gao's) training accuracy: %.4f%%" % (i + 1, trainscore))
 
                 # Log metrics per epoch.
                 # TODO Print a clean, well-organized report.
@@ -248,6 +250,14 @@ class GaoTextCNN(object):
                 logging.debug(print('total:', counter))
 
                 print(confusion_matrix(y_true, y_pred))
+
+                conf_matrix_arr = confusion_matrix(y_true, y_pred)
+
+                TP = conf_matrix_arr[1][1]
+                FP = conf_matrix_arr[0][1]
+                TN = conf_matrix_arr[0][0]
+                FN = conf_matrix_arr[1][0]
+
                 print(classification_report(y_true, y_pred))
                 print('accuracy:', accuracy_score(y_true, y_pred))
                 print('precision:', precision_score(y_true, y_pred))
@@ -263,6 +273,8 @@ class GaoTextCNN(object):
                 auc_RF = roc_auc_score(y_true, y_pred)
                 auc_LR = roc_auc_score(y_true, y_pred)
 
+
+
                 # TODO Produce plot?
                 plt.plot(fpr_RF, tpr_RF, 'r-', label='RF AUC: %.3f' % auc_RF)
                 plt.plot(fpr_LR, tpr_LR, 'b-', label='LR AUC: %.3f' % auc_LR)
@@ -275,18 +287,48 @@ class GaoTextCNN(object):
                 plt.clf()
 
                 # Validate.
-                # TODO Convert this to use CV splitting like
-                # the course reviews project.
                 if validation_data:
                     score = self.score(validation_data[0], validation_data[1])
-                    print("epoch %i validation accuracy: %.4f%%" % (i + 1, score * 100))
+                    print("epoch %i validation accuracy: %.4f%%" % (i + 1, score))
+
+                    # TODO Figure out path for results.
+                    results_filename = 'ep-' + i + '-spl-' + cv_split_num
+                    results_path = Path('results') / self.run_id / results_filename
+                    with open(str(results_path), mode='w') as csv_file:
+                        fieldnames = ['epoch', 'cv_split', 'num_recs', 'skl_acc',
+                                      'skl_prec', 'skl_recall', 'skl_f1',
+                                      'skl_f1_micro_avg', 'skl_f1_macro_avg',
+                                      'skl_f1_weighted_avg', 'skl_log_loss',
+                                      'gao_train_acc', 'gao_val_acc']
+                        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+                        writer.writeheader()
+                        # Write row foe each epoch.
+                        # TODO Plug in the vars.
+                        csv_row = {'epoch': i, 'cv_split': cv_split_num,
+                                   'num_recs': counter,
+                                   'tp': TP,
+                                   'fp': FP,
+                                   'tn': TN,
+                                   'fn': FN,
+                                   'skl_acc': accuracy_score(y_true, y_pred),
+                                   'skl_prec': precision_score(y_true, y_pred),
+                                   'skl_recall': recall_score(y_true, y_pred),
+                                   'skl_f1': f1_score(y_true, y_pred),
+                                   'skl_f1_micro_avg': f1_score(y_true, y_pred,
+                                                                average='micro'),
+                                   'skl_f1_macro_avg': f1_score(y_true, y_pred,
+                                                                average='macro'),
+                                   'skl_f1_weighted_avg':
+                                       f1_score(y_true, y_pred, average='weighted'),
+                                   'skl_log_loss': log_loss(y_true, y_pred),
+                                   'gao_train_acc': trainscore,
+                                   'gao_val_acc': score}
+                        writer.writerow(csv_row)
 
                 # Save if performance better than previous best.
                 if savebest and score >= prevbest:
                     prevbest = score
                     self.save(filepath)
-
-
 
     def predict(self, data):
         """

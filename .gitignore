@@ -5,8 +5,16 @@
 #                                   /
 #==================================+
 
-# Downloadable datasets.
-data/Wikimedia*
+# Downloadable datasets (allow data processing scripts).
+data/Wikimedia-Toxicity-Aggression/*
+!data/Wikimedia-Toxicity-Aggression/data_prep_wikimedia_aggression.py
+
+data/Wikimedia-Toxicity-Personal-Attacks/*
+!data/Wikimedia-Toxicity-Personal-Attacks/data_prep_wikimedia_attacks.py
+
+data/Wikimedia-Toxicity-Toxicity/*
+!data/Wikimedia-Toxicity-Toxicity/data_prep_wikimedia_toxicity.py
+
 data/jigsaw-toxic-comment-classification-challenge/*
 !data/jigsaw-toxic-comment-classification-challenge/data_prep_jigsaw.py
 
