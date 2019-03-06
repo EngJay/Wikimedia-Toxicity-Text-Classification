@@ -1,10 +1,11 @@
-import numpy as np
-import tensorflow as tf
+import os
 import sys
 import time
 import csv
 import logging
 from pathlib import Path
+import numpy as np
+import tensorflow as tf
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import classification_report
@@ -133,7 +134,6 @@ class GaoTextCNN(object):
         self.loss = tf.reduce_mean(
             tf.nn.softmax_cross_entropy_with_logits(
                 logits=self.output, labels=self.labels_rs))
-        tf.summary.histogram("loss", self.loss)
         self.optimizer = \
             tf.train.AdamOptimizer(0.00001, 0.9, 0.99).minimize(self.loss)
 
@@ -192,143 +192,155 @@ class GaoTextCNN(object):
         print('training network on %i documents, validating on %i documents' \
               % (len(data), validation_size))
 
-        with self.sess as sess:
-            # Output directory for models and summaries
-            timestamp = str(int(time.time()))
+        # Removing: with self.sess as sess:
+        #with self.sess as sess:
+        # Output directory for models and summaries
+        timestamp = str(int(time.time()))
 
-            # Track best model for saving.
-            prevbest = 0
-            for i in range(epochs):
-                # TODO FEATURE Add gathering of stats for confusion matrix.
-                correct = 0
-                y_pred = []
-                y_true = []
-                start = time.time()
+        # Track best model for saving.
+        prevbest = 0
+        for i in range(epochs):
+            # TODO FEATURE Add gathering of stats for confusion matrix.
+            correct = 0
+            y_pred = []
+            y_true = []
+            start = time.time()
 
-                # Train.
-                counter = 0
-                for doc in range(len(data)):
-                    counter += 1
-                    #merge = tf.summary.merge_all()
+            # Train.
+            counter = 0
+            for doc in range(len(data)):
+                counter += 1
 
-                    inputval = self._list_to_numpy(data[doc])
-                    feed_dict = {self.doc_input: inputval, self.labels: labels[doc],
-                                 self.dropout: self.dropout_keep}
-                    pred, cost, _ = self.sess.run(
-                        [self.prediction, self.loss, self.optimizer],
-                        feed_dict=feed_dict)
+                inputval = self._list_to_numpy(data[doc])
+                feed_dict = {self.doc_input: inputval, self.labels: labels[doc],
+                             self.dropout: self.dropout_keep}
+                pred, cost, _ = self.sess.run(
+                    [self.prediction, self.loss, self.optimizer],
+                    feed_dict=feed_dict)
 
-                    # Collect raw stats for calculating metrics.
-                    if np.argmax(pred) == np.argmax(labels[doc]):
-                        correct += 1
+                # Collect raw stats for calculating metrics.
+                if np.argmax(pred) == np.argmax(labels[doc]):
+                    correct += 1
 
-                    # Collect predictions for calculating metrics with sklearn.
-                    # Build array of y_pred.
-                    # Insert each prediction at the same index of its label
-                    # in the y_true array.
-                    y_pred.insert(doc, np.argmax(pred))
-                    y_true.insert(doc, np.argmax(labels[doc]))
+                # Collect predictions for calculating metrics with sklearn.
+                # Build array of y_pred.
+                # Insert each prediction at the same index of its label
+                # in the y_true array.
+                y_pred.insert(doc, np.argmax(pred))
+                y_true.insert(doc, np.argmax(labels[doc]))
 
-                    sys.stdout.write("epoch %i, sample %i of %i, loss: %f      \r" \
-                                     % (i + 1, doc + 1, len(data), cost))
-                    sys.stdout.flush()
+                sys.stdout.write("epoch %i, sample %i of %i, loss: %f      \r"
+                                 % (i + 1, doc + 1, len(data), cost))
+                sys.stdout.flush()
 
-                    if (doc + 1) % 50000 == 0:
-                        score = self.score(validation_data[0], validation_data[1])
-                        print("iteration %i validation accuracy: %.4f%%" % (
-                        doc + 1, score * 100))
-
-                print()
-                # print("training time: %.2f" % (time.time()-start))
-                trainscore = correct / len(data)
-                print("epoch %i (Gao's) training accuracy: %.4f%%" % (i + 1, trainscore))
-
-                # Log metrics per epoch.
-                # TODO Print a clean, well-organized report.
-                # TODO Also generate a CSV for easy analysis.
-                logging.debug(print('correct:', correct))
-                logging.debug(print('total:', counter))
-
-                print(confusion_matrix(y_true, y_pred))
-
-                conf_matrix_arr = confusion_matrix(y_true, y_pred)
-
-                TP = conf_matrix_arr[1][1]
-                FP = conf_matrix_arr[0][1]
-                TN = conf_matrix_arr[0][0]
-                FN = conf_matrix_arr[1][0]
-
-                print(classification_report(y_true, y_pred))
-                print('accuracy:', accuracy_score(y_true, y_pred))
-                print('precision:', precision_score(y_true, y_pred))
-                print('recall:', recall_score(y_true, y_pred))
-                print('f1:', f1_score(y_true, y_pred))
-                print('log loss:', log_loss(y_true, y_pred))
-
-                # Log ROC Curve.
-                fpr_RF, tpr_RF, thresholds_RF = roc_curve(y_true, y_pred)
-                fpr_LR, tpr_LR, thresholds_LR = roc_curve(y_true, y_pred)
-
-                # Log AUC Score.
-                auc_RF = roc_auc_score(y_true, y_pred)
-                auc_LR = roc_auc_score(y_true, y_pred)
-
-
-
-                # TODO Produce plot?
-                plt.plot(fpr_RF, tpr_RF, 'r-', label='RF AUC: %.3f' % auc_RF)
-                plt.plot(fpr_LR, tpr_LR, 'b-', label='LR AUC: %.3f' % auc_LR)
-                plt.plot([0, 1], [0, 1], 'k-', label='random')
-                plt.plot([0, 0, 1, 1], [0, 1, 1, 1], 'g-', label='perfect')
-                plt.legend()
-                plt.xlabel('False Positive Rate')
-                plt.ylabel('True Positive Rate')
-                plt.savefig(str(Path(r'./logs/plots') / timestamp + '-epoch-' + i))
-                plt.clf()
-
-                # Validate.
-                if validation_data:
+                if (doc + 1) % 50000 == 0:
                     score = self.score(validation_data[0], validation_data[1])
-                    print("epoch %i validation accuracy: %.4f%%" % (i + 1, score))
+                    print("iteration %i validation accuracy: %.4f%%" % (
+                    doc + 1, score * 100))
 
-                    # TODO Figure out path for results.
-                    results_filename = 'ep-' + i + '-spl-' + cv_split_num
-                    results_path = Path('results') / self.run_id / results_filename
-                    with open(str(results_path), mode='w') as csv_file:
-                        fieldnames = ['epoch', 'cv_split', 'num_recs', 'skl_acc',
-                                      'skl_prec', 'skl_recall', 'skl_f1',
-                                      'skl_f1_micro_avg', 'skl_f1_macro_avg',
-                                      'skl_f1_weighted_avg', 'skl_log_loss',
-                                      'gao_train_acc', 'gao_val_acc']
-                        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+            print()
+            # print("training time: %.2f" % (time.time()-start))
+            trainscore = correct / len(data)
+            print("epoch %i (Gao's) training accuracy: %.4f" % (i + 1, trainscore))
+
+            # Log metrics per epoch.
+            # TODO Print a clean, well-organized report.
+            logging.debug(print('correct:', correct))
+            logging.debug(print('total:', counter))
+            logging.debug(confusion_matrix(y_true, y_pred))
+
+            # Get results from confusion matrix.
+            conf_matrix_arr = confusion_matrix(y_true, y_pred)
+            TP = conf_matrix_arr[1][1]
+            FP = conf_matrix_arr[0][1]
+            TN = conf_matrix_arr[0][0]
+            FN = conf_matrix_arr[1][0]
+
+            logging.debug(classification_report(y_true, y_pred))
+            logging.debug(print('accuracy:', accuracy_score(y_true, y_pred)))
+            logging.debug(print('precision:', precision_score(y_true, y_pred)))
+            logging.debug(print('recall:', recall_score(y_true, y_pred)))
+            logging.debug(print('f1:', f1_score(y_true, y_pred)))
+            logging.debug(print('log loss:', log_loss(y_true, y_pred)))
+
+            # Validate.
+            if validation_data:
+                score = self.score(validation_data[0], validation_data[1])
+                print("epoch %i validation accuracy: %.4f%%" % (i + 1, score))
+
+                # Write results to file.
+
+                results_dir = Path('results') / str(self.run_id)
+                # Create directory for run within results directory.
+                try:
+                    os.makedirs(results_dir)
+                except FileExistsError:
+                    logging.info('Run directory already exists.')
+
+                # Build path to which to write results.
+                results_filename = str(self.run_id) + '.csv'
+                results_path = results_dir / results_filename
+
+                # Check for existence of csv to determine if header is needed.
+                results_file_exists = os.path.isfile(results_path)
+
+                # Open file, write/append results.
+                with open(str(results_path), mode='a') as csv_file:
+                    fieldnames = ['cv_split', 'epoch', 'num_recs', 'tp', 'fp',
+                                  'tn', 'fn', 'skl_acc', 'skl_prec',
+                                  'skl_recall', 'skl_f1', 'skl_f1_micro_avg',
+                                  'skl_f1_macro_avg', 'skl_f1_weighted_avg',
+                                  'skl_log_loss', 'skl_auc', 'gao_train_acc',
+                                  'gao_val_acc']
+                    writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+
+                    # Write header only if results csv did not exist at beginning
+                    # of this trip through.
+                    if not results_file_exists:
                         writer.writeheader()
-                        # Write row foe each epoch.
-                        # TODO Plug in the vars.
-                        csv_row = {'epoch': i, 'cv_split': cv_split_num,
-                                   'num_recs': counter,
-                                   'tp': TP,
-                                   'fp': FP,
-                                   'tn': TN,
-                                   'fn': FN,
-                                   'skl_acc': accuracy_score(y_true, y_pred),
-                                   'skl_prec': precision_score(y_true, y_pred),
-                                   'skl_recall': recall_score(y_true, y_pred),
-                                   'skl_f1': f1_score(y_true, y_pred),
-                                   'skl_f1_micro_avg': f1_score(y_true, y_pred,
-                                                                average='micro'),
-                                   'skl_f1_macro_avg': f1_score(y_true, y_pred,
-                                                                average='macro'),
-                                   'skl_f1_weighted_avg':
-                                       f1_score(y_true, y_pred, average='weighted'),
-                                   'skl_log_loss': log_loss(y_true, y_pred),
-                                   'gao_train_acc': trainscore,
-                                   'gao_val_acc': score}
-                        writer.writerow(csv_row)
 
-                # Save if performance better than previous best.
-                if savebest and score >= prevbest:
-                    prevbest = score
-                    self.save(filepath)
+                    # Write row for each epoch.
+                    csv_row = {'cv_split': cv_split_num, 'epoch': i+1,
+                               'num_recs': counter,
+                               'tp': TP,
+                               'fp': FP,
+                               'tn': TN,
+                               'fn': FN,
+                               'skl_acc': accuracy_score(y_true, y_pred),
+                               'skl_prec': precision_score(y_true, y_pred),
+                               'skl_recall': recall_score(y_true, y_pred),
+                               'skl_f1': f1_score(y_true, y_pred),
+                               'skl_f1_micro_avg': f1_score(y_true, y_pred,
+                                                            average='micro'),
+                               'skl_f1_macro_avg': f1_score(y_true, y_pred,
+                                                            average='macro'),
+                               'skl_f1_weighted_avg':
+                                   f1_score(y_true, y_pred, average='weighted'),
+                               'skl_log_loss': log_loss(y_true, y_pred),
+                               'skl_auc': roc_auc_score(y_true, y_pred),
+                               'gao_train_acc': trainscore,
+                               'gao_val_acc': score}
+                    writer.writerow(csv_row)
+
+                # Plot ROC Curve and AUC score for last epoch.
+                if i == epochs-1:
+                    fpr, tpr, thresholds = roc_curve(y_true, y_pred)
+                    auc = roc_auc_score(y_true, y_pred)
+                    plt.clf()
+                    plt.plot(fpr, tpr, 'r-', label='CNN: %.3f' % auc)
+                    plt.plot([0, 1], [0, 1], 'k-', label='Random')
+                    plt.plot([0, 0, 1, 1], [0, 1, 1, 1], 'g-', label='Perfect')
+                    plt.legend()
+                    plt.xlabel('False Positive Rate')
+                    plt.ylabel('True Positive Rate')
+                    fig_filename = 'ROC_CV_Split_' + str(cv_split_num)
+                    fig_path = results_dir / fig_filename
+                    plt.savefig(fig_path)
+
+            # Save if performance better than previous best.
+            if savebest and score >= prevbest:
+                prevbest = score
+                self.save(filepath)
 
     def predict(self, data):
         """

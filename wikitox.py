@@ -8,12 +8,10 @@ from pathlib import Path
 import getopt
 import logging
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 import msgpack
 from sklearn.preprocessing import LabelEncoder, LabelBinarizer, OneHotEncoder
-from sklearn.model_selection import train_test_split, StratifiedKFold
-import extract_features as ef
+from sklearn.model_selection import StratifiedKFold
 import tf_gao_text_cnn as cnn
 
 
@@ -55,10 +53,6 @@ def main(argv):
     # Default data path.
     data_path = Path('')
 
-    # Data preparation skipped by default.
-    # TODO eliminate after moving data prep code out of this.
-    data_prep_needed = False
-
     # Label encoding skipped by default
     encode_labels_needed = False
 
@@ -73,10 +67,9 @@ def main(argv):
     num_cv_runs = 10
     num_cv_splits = 10
 
-    # Default number of votes to decide label based on the annotations of the
-    # ten workers who annotated the dataset.
-    # TODO Move this along with the data prep code to dataset-specific script.
-    min_num_votes = 6
+    # Default number of records to use.
+    # -1 == use all records.
+    num_records = -1
 
     # ================================= +
     #                                  /
@@ -86,12 +79,13 @@ def main(argv):
 
     # Parse cli args.
     try:
-        opts, args = getopt.getopt(argv, "ldhve:c:m:n:",
+        opts, args = getopt.getopt(argv, "lhve:c:m:n:r:",
                                    ["num_epochs=", "num_cv_splits=",
-                                    "embeddings_path=", "data_path="])
+                                    "embeddings_path=", "data_path=",
+                                    "records_num="])
     except getopt.GetoptError:
         print('train.py -e <num_epochs> -c <num_cv_splits> -m <embeddings_path> '
-              + '-n <data_path>')
+              + '-n <data_path> -r <records_num>')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
@@ -100,12 +94,11 @@ def main(argv):
                   + '  num_epochs=50\t\tNumber of epochs\n'
                   + '  num_cv_splits=50\tNumber of cross-validation splits\n'
                   + '  embeddings_path=\tPath to word embeddings\n'
-                  + '  data_path=\tPath to data\n')
+                  + '  data_path=\tPath to data\n'
+                  + '  records_num=\tNumber of records to pass in\n')
             sys.exit()
         elif opt == '-v':
             logging.getLogger().setLevel(logging.DEBUG)
-        elif opt == '-d':
-            data_prep_needed = True
         elif opt in ("-e", "--num_epochs"):
             num_epochs = int(arg)
         elif opt in ("-c", "--num_cv_splits"):
@@ -115,122 +108,12 @@ def main(argv):
             embeddings_path = Path(str(arg))
         elif opt in ("-n", "--data_path"):
             data_path = Path(str(arg))
+        elif opt in ("-r", "--records_num"):
+            num_records = int(arg)
         elif opt == '-l':
             encode_labels_needed = True
 
-    # Set vars with default or passed-in values.
-
-    # Skip data preparation by default.
-    # TODO Move all of this into a dataset-specific data_prep_DATASET script.
-    if data_prep_needed:
-
-        # Get the data, create dataframes from the tab-separated files.
-        # TODO Add setting for separator, so not coupled to tsv.
-        attacks_comments_path = data_path / 'Wikimedia-Toxicity-Personal-Attacks'
-        attacks_comments_path = attacks_comments_path / 'attack_annotated_comments.tsv'
-        attacks_comments_df = pd.read_csv(attacks_comments_path, sep='\t', header=0)
-
-        attacks_labels_path = data_path / 'Wikimedia-Toxicity-Personal-Attacks'
-        attacks_labels_path = attacks_labels_path / 'attack_annotations.tsv'
-        attacks_labels_df = pd.read_csv(attacks_labels_path, sep='\t', header=0)
-
-        logging.debug(attacks_comments_df.head())
-        logging.debug(attacks_labels_df.head())
-
-        # Build paths to word embeddings.
-        # TODO IMPROVEMENT Make this a cli arg w/ Google vectors as default.
-        raw_embeddings_filename = data_path / 'pretrained_embeddings' / 'GoogleNews-vectors-negative300.bin'
-        # TODO IMPROVEMENT Create cache file name based on original vector binary.
-        embeddings_cache_filename = data_path / 'pretrained_embeddings' / 'embeddings-cache.bin'
-
-        # ============================== +
-        #                               /
-        #    P R E P A R E  D A T A    /
-        #                             /
-        # --------------------------- +
-
-        # Merge data frames of comments and annotations on rev_id.
-        attacks_merged = pd.merge(attacks_comments_df, attacks_labels_df,
-                                  on='rev_id')
-
-        # Treat the 10 records (one for each worker) for each comment
-        # like votes: > 5 workers reporting a comment contains an attack = 1.
-        # Group by rev_id, then sum attack column per group.
-        #
-        # Since the presence of an attack is a 1, the annotations
-        # by the workers can be treated as votes, so a sum of the
-        # attack column greater than 5 means more than half of the
-        # workers thought the comment contained a personal attack,
-        # and is therefore labeled as containing a personal attack.
-        attacks_merged_summed = attacks_merged.groupby('rev_id').sum()
-
-        # LABELS: Build set of rev_ids that contain personal attacks as labels.
-        attacks = attacks_merged_summed.loc[attacks_merged_summed['attack'] > 5].copy()
-        attacks.reset_index(level=0, inplace=True)
-        attacks['attack'] = 1
-        attacks.drop(
-            ['year', 'logged_in', 'worker_id', 'quoting_attack', 'recipient_attack',
-             'third_party_attack', 'other_attack'], axis=1, inplace=True)
-
-        # Build set of rev_ids that do not contain attacks.
-        no_attacks = attacks_merged_summed.loc[
-            attacks_merged_summed['attack'] <= 5].copy()
-        no_attacks.reset_index(level=0, inplace=True)
-        no_attacks['attack'] = 0
-        no_attacks.drop(
-            ['year', 'logged_in', 'worker_id', 'quoting_attack', 'recipient_attack',
-             'third_party_attack', 'other_attack'], axis=1, inplace=True)
-
-        # Combine the the two sets and sort.
-        labels = attacks.append(no_attacks)
-        labels.sort_values(by=['rev_id'], inplace=True)
-        labels.reset_index(level=0, drop=True, inplace=True)
-
-        logging.debug(print(labels.head()))
-
-        # FEATURES: Create features.
-        # groupby the rev_id, get only first of each group.
-        features = attacks_merged.groupby('rev_id').first().copy()
-
-        # Reset index, saving rev_id as column.
-        features.reset_index(level=0, inplace=True)
-
-        # Drop everything except for 'rev_id' and 'comment'.
-        features.drop(['year', 'logged_in', 'ns', 'sample', 'split', 'worker_id',
-                       'quoting_attack', 'recipient_attack', 'third_party_attack',
-                       'other_attack', 'attack'], axis=1, inplace=True)
-
-        # Merge with labels for complete set labeled data.
-        features = pd.merge(features, labels, on='rev_id').copy()
-
-        # Number of comments with and without attacks.
-        num_attacks = len(features[features['attack'] == 1].index)
-        num_not_attacks = len(features[features['attack'] == 0].index)
-
-        logging.info(
-            print('Num of comments containing an attack: ', num_attacks)
-        )
-        logging.info(
-            print('Num of comments not containing an attack: ', num_not_attacks)
-        )
-
-        # Write features and labels to disk.
-        # TODO Add setting for path to store cached data.
-        raw_features_path = Path('data/cache/raw_features.csv')
-        features.to_csv(raw_features_path)
-
-        logging.debug(print(features.head()))
-
-        # ===================================================== +
-        #                                                      /
-        #    G E N E R A T E  W O R D  E M B E D D I N G S    /
-        #                                                    /
-        # ------------------------------------------------- +
-
-        # Build vocabulary and word embeddings from source if needed.
-
-        ef.extract_features(raw_features_path)
-
+    # TODO Do something with the rest of the hyperparams / params.
     # LABEL_POS_THRESH = 4
     # FEATURE_SIZE = 128
     # NUM_WORDS = 21985
@@ -280,7 +163,11 @@ def main(argv):
 
     # Number of docs, which is also the number of observations or samples,
     # and the number of rows of the input matrix.
-    num_docs = len(data)
+    if num_records < 0:
+        num_docs = len(data)
+    else:
+        # Subtract 1 to shift to zero-indexing.
+        num_docs = num_records - 1
 
     # Convert data to numpy arrays.
     logging.info('Converting data to arrays.')
@@ -316,6 +203,8 @@ def main(argv):
     del data
     print()
 
+    # TODO Better handling of label encoding?
+    #   - Develop set of cases to handle and document.
     if encode_labels_needed:
         # Label encoder.
         #   Encode labels with value between 0 and n_classes-1,
@@ -355,6 +244,7 @@ def main(argv):
     #                                     /
     # ---------------------------------- +
 
+    # TODO Delete this after duplicating anything beneficial from it w/ CV.
     # Test train split.
     # if encode_labels_needed:
     #     X_train, X_test, y_train, y_test = train_test_split(docs, y_bin,
@@ -378,12 +268,11 @@ def main(argv):
     cv = StratifiedKFold(num_cv_splits, True)
 
     # In order to select by set of indices, convert to numpy array.
-    # TODO Should this conversion to np array happen earlier?
     docs_arr = np.array(docs)
     y_arr = np.array(y_bin)
-
-    # Create instance of the neural network.
-    nn = cnn.GaoTextCNN(vocab, num_classes, max_words)
+    # if num_records >= 0:
+    #     docs_arr = docs_arr[1000:]
+    #     y_arr = y_arr[1000:]
 
     # ================================ +
     #                                 /
@@ -393,13 +282,17 @@ def main(argv):
 
     logging.info("Training NN.")
 
+    # Create instance of the neural network.
+    nn = cnn.GaoTextCNN(vocab, num_classes, max_words)
+
     # Train the NN num_epochs x num_cv_runs.
-    #   Default: 10 epochs x 10 CV splits = 100 training sessions.
+    #   Default: 10 epochs x 10 CV splits = 100 sessions.
     split_num = 0
     for train, test in cv.split(docs, y):
         split_num += 1
         logging.info('CV Split {0:d}'.format(split_num))
 
+        # TODO Return set of metrics after each epoch.
         nn.train(docs_arr[train], y_arr[train],
                  epochs=num_epochs,
                  cv_split_num=split_num,
@@ -414,7 +307,8 @@ def main(argv):
     #                    /
     # ----------------- +
 
-    # TODO Move metrics here? Could collect them in a dictionary and return?
+    # TODO Write/report set of metrics after gathering during the training/CV loops?
+
 
 if __name__ == '__main__':
     main(sys.argv[1:])
