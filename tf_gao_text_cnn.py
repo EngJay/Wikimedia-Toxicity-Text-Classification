@@ -48,7 +48,10 @@ class GaoTextCNN(object):
     """
 
     def __init__(self, embedding_matrix, num_classes,
-                 max_words, num_filters=300, dropout_keep=0.5):
+                 max_words, num_filters=300, dropout_keep=0.5, flags=None):
+
+        # Store TF flags.
+        self.flags = flags
 
         # Use epoch time as run ID num.
         self.run_id = time.time()
@@ -126,7 +129,7 @@ class GaoTextCNN(object):
                                       tf.zeros_initializer())
 
         self.prediction = tf.nn.softmax(self.output, name="prediction")
-        tf.summary.histogram("prediction", self.prediction)
+        # tf.summary.histogram("prediction", self.prediction)
 
         # Loss, accuracy, and training functions.
         self.labels = tf.placeholder(tf.float32, shape=[num_classes], name="input_y")
@@ -134,8 +137,12 @@ class GaoTextCNN(object):
         self.loss = tf.reduce_mean(
             tf.nn.softmax_cross_entropy_with_logits(
                 logits=self.output, labels=self.labels_rs))
+
+        # If TPU, wrap regular optimizer with CrossShardOptimizer for TPU.
         self.optimizer = \
             tf.train.AdamOptimizer(0.00001, 0.9, 0.99).minimize(self.loss)
+        if self.flags.use_tpu:
+            self.optimizer = tf.contrib.tpu.CrossShardOptimizer(self.optimizer)
 
         # Init op.
         self.init_op = tf.global_variables_initializer()

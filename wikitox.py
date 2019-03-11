@@ -5,15 +5,15 @@
 import os
 import sys
 from pathlib import Path
-import getopt
 import logging
+from io import BytesIO
+from tensorflow.python.lib.io import file_io
 import numpy as np
 import tensorflow as tf
 import msgpack
 from sklearn.preprocessing import LabelEncoder, LabelBinarizer, OneHotEncoder
 from sklearn.model_selection import StratifiedKFold
 import tf_gao_text_cnn as cnn
-
 
 # GPU check.
 # Ensure tensorflow can find CUDA device.
@@ -28,13 +28,86 @@ if device_name != '/device:GPU:0':
 else:
     print('Found GPU at : {}'.format(device_name))
 
+# ================================= +
+#                                  /
+#    P A R S E  C L I  A R G S    /
+#                                /
+# ----------------------------- +
+
+# Cloud TPU Cluster Resolver flags
+tf.flags.DEFINE_string(
+    "tpu", default=None,
+    help="The Cloud TPU to use for training. This should be either the name "
+    "used when creating the Cloud TPU, or a grpc://ip.address.of.tpu:8470 "
+    "url.")
+tf.flags.DEFINE_string(
+    "tpu_zone", default=None,
+    help="[Optional] GCE zone where the Cloud TPU is located in. If not "
+    "specified, we will attempt to automatically detect the GCE project from "
+    "metadata.")
+tf.flags.DEFINE_string(
+    "gcp_project", default=None,
+    help="[Optional] Project name for the Cloud TPU-enabled project. If not "
+    "specified, we will attempt to automatically detect the GCE project from "
+    "metadata.")
+
+# Model specific parameters
+# TODO Some of these might not be needed or need modifying.
+tf.flags.DEFINE_string("data_dir", "",
+                       "Path to directory containing data")
+tf.flags.DEFINE_string("model_dir", None, "Estimator model_dir")
+tf.flags.DEFINE_integer("batch_size", 1024,
+                        "Mini-batch size for the training. Note that this "
+                        "is the global batch size and not the per-shard batch.")
+tf.flags.DEFINE_integer("train_steps", 1000, "Total number of training steps.")
+tf.flags.DEFINE_integer("eval_steps", 0,
+                        "Total number of evaluation steps. If `0`, evaluation "
+                        "after training is skipped.")
+tf.flags.DEFINE_float("learning_rate", 0.05, "Learning rate.")
+
+tf.flags.DEFINE_bool("use_tpu", True, "Use TPUs rather than plain CPUs")
+tf.flags.DEFINE_bool("enable_predict", True, "Do some predictions at the end")
+tf.flags.DEFINE_integer("iterations", 50,
+                        "Number of iterations per TPU training loop.")
+tf.flags.DEFINE_integer("num_shards", 8, "Number of shards (TPU chips).")
+
+tf.flags.DEFINE_string('embeddings_path', '', 'Path to word embeddings.')
+tf.flags.DEFINE_string('data_path', '', 'Path to data.')
+tf.flags.DEFINE_integer('num_epochs', 50, 'Number of epochs')
+tf.flags.DEFINE_integer('num_cv_runs', 10, 'Number of CV splits left to run.')
+tf.flags.DEFINE_integer('num_cv_splits', 10, 'Number of CV splits.')
+tf.flags.DEFINE_integer('num_records', -1, 'Number of records to run, default'
+                                           'of -1 runs all records.')
+tf.flags.DEFINE_bool("encode_labels", False, "Encode labels before feeding.")
+tf.flags.DEFINE_bool("verbose", False, "Set verbosity to debug.")
+
+FLAGS = tf.flags.FLAGS
+
 
 def main(argv):
-    """
+    # Set verbosity of tf logging.
+    if FLAGS.verbose:
+        tf.logging.set_verbosity(tf.logging.DEBUG)
+    else:
+        tf.logging.set_verbosity(tf.logging.INFO)
 
-    :param argv: array of command line arguments
-    :return: None
-    """
+    if FLAGS.use_tpu:
+        # Configure GC Cluster Resolver for TPU usage.
+        tpu_cluster_resolver = tf.contrib.cluster_resolver.TPUClusterResolver(
+            FLAGS.tpu,
+            zone=FLAGS.tpu_zone,
+            project=FLAGS.gcp_project
+        )
+
+        # Configure TPU.
+        run_config = tf.contrib.tpu.RunConfig(
+            cluster=tpu_cluster_resolver,
+            model_dir=FLAGS.model_dir,
+            session_config=tf.ConfigProto(
+                allow_soft_placement=True, log_device_placement=True),
+            tpu_config=tf.contrib.tpu.TPUConfig(FLAGS.iterations, FLAGS.num_shards),
+        )
+
     # ======================= +
     #                        /
     #    D E F A U L T S    /
@@ -44,108 +117,9 @@ def main(argv):
     # Default log level.
     logging.basicConfig(level=logging.INFO)
 
-    # Default data directory.
-    data_dir = r'data'
-
-    # Default embeddings path.
-    embeddings_path = Path('')
-
-    # Default data path.
-    data_path = Path('')
-
-    # Label encoding skipped by default
-    encode_labels_needed = False
-
     # Default number of filters.
     # TODO Appropriate default number of filters?
     num_filters = 50
-
-    # Default number of epochs.
-    num_epochs = 50
-
-    # Default number of cross-validation splits.
-    num_cv_runs = 10
-    num_cv_splits = 10
-
-    # Default number of records to use.
-    # -1 == use all records.
-    num_records = -1
-
-    # ================================= +
-    #                                  /
-    #    P A R S E  C L I  A R G S    /
-    #                                /
-    # ----------------------------- +
-
-    # Parse cli args.
-    try:
-        opts, args = getopt.getopt(argv, "lhve:c:m:n:r:",
-                                   ["num_epochs=", "num_cv_splits=",
-                                    "embeddings_path=", "data_path=",
-                                    "records_num="])
-    except getopt.GetoptError:
-        print('train.py -e <num_epochs> -c <num_cv_splits> -m <embeddings_path> '
-              + '-n <data_path> -r <records_num>')
-        sys.exit(2)
-    for opt, arg in opts:
-        if opt == '-h':
-            print('train.py -e <num_epochs> -c <num_cv_splits>\n'
-                  + 'Defaults:\n'
-                  + '  num_epochs=50\t\tNumber of epochs\n'
-                  + '  num_cv_splits=50\tNumber of cross-validation splits\n'
-                  + '  embeddings_path=\tPath to word embeddings\n'
-                  + '  data_path=\tPath to data\n'
-                  + '  records_num=\tNumber of records to pass in\n')
-            sys.exit()
-        elif opt == '-v':
-            logging.getLogger().setLevel(logging.DEBUG)
-        elif opt in ("-e", "--num_epochs"):
-            num_epochs = int(arg)
-        elif opt in ("-c", "--num_cv_splits"):
-            num_cv_runs = int(arg)
-            num_cv_splits = int(arg)
-        elif opt in ("-m", "--embeddings_path"):
-            embeddings_path = Path(str(arg))
-        elif opt in ("-n", "--data_path"):
-            data_path = Path(str(arg))
-        elif opt in ("-r", "--records_num"):
-            num_records = int(arg)
-        elif opt == '-l':
-            encode_labels_needed = True
-
-    # TODO Do something with the rest of the hyperparams / params.
-    # LABEL_POS_THRESH = 4
-    # FEATURE_SIZE = 128
-    # NUM_WORDS = 21985
-    # EMBED_DIM = 300
-    #
-    # # TODO IMPROVEMENT Some of these should be cli params w/ default values.
-    # # Hyperparameters.
-    # # LEARN_RATE = [0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09,]
-    # LEARN_RATE = 0.0001
-    # BATCH_SIZE = 32
-    # DROPOUT = 0.5
-    # CONV_DROPOUT = 0.1
-    #
-    # # Length of longest comment.
-    # sequence_length = features.comment.map(len).max()
-    #
-    # # Number of classes.
-    # num_classes = 2
-    #
-    # # Number of words in vocabulary in embeddings.
-    # # vocab_size = len(embed['vocab'])
-    #
-    # # Number of dimensions in embeddings.
-    # embedding_size  = 300
-    #
-    # # Sizes of filters.
-    # filter_sizes = [3, 4, 5]
-    #
-    # learning_rate = 0.0001
-    # batch_size = 32
-    # dropout = 0.5
-    # conv_dropout = 0.1
 
     # ======================================== +
     #                                         /
@@ -155,19 +129,20 @@ def main(argv):
 
     # Read in saved files.
     logging.info('Loading data.')
-    vocab = np.load(embeddings_path)
+    f = BytesIO(file_io.read_file_to_string(FLAGS.embeddings_path, binary_mode=True))
+    vocab = np.load(f)
 
     # Load features and labels.
-    with open(str(data_path), 'rb') as f:
-        data = msgpack.unpack(f, raw=False)
+    f = BytesIO(file_io.read_file_to_string(FLAGS.data_path, binary_mode=True))
+    data = msgpack.unpack(f, raw=False)
 
     # Number of docs, which is also the number of observations or samples,
     # and the number of rows of the input matrix.
-    if num_records < 0:
+    if FLAGS.num_records < 0:
         num_docs = len(data)
     else:
         # Subtract 1 to shift to zero-indexing.
-        num_docs = num_records - 1
+        num_docs = FLAGS.num_records - 1
 
     # Convert data to numpy arrays.
     logging.info('Converting data to arrays.')
@@ -205,7 +180,7 @@ def main(argv):
 
     # TODO Better handling of label encoding?
     #   - Develop set of cases to handle and document.
-    if encode_labels_needed:
+    if FLAGS.encode_labels:
         # Label encoder.
         #   Encode labels with value between 0 and n_classes-1,
         #   so for example 1 to 5 star ratings become 0 to 4.
@@ -244,18 +219,6 @@ def main(argv):
     #                                     /
     # ---------------------------------- +
 
-    # TODO Delete this after duplicating anything beneficial from it w/ CV.
-    # Test train split.
-    # if encode_labels_needed:
-    #     X_train, X_test, y_train, y_test = train_test_split(docs, y_bin,
-    #                                                         test_size=0.1,
-    #                                                         random_state=1234,
-    #                                                         stratify=y)
-    # else:
-    #     X_train, X_test, y_train, y_test = train_test_split(docs, y_bin,
-    #                                                         test_size=0.1,
-    #                                                         random_state=1234)
-
     # Create and train nn.
     logging.info("Building NN.")
 
@@ -265,7 +228,7 @@ def main(argv):
     #     consistent across folds.
     #
     # cv = KFold(CV_SPLITS, True)
-    cv = StratifiedKFold(num_cv_splits, True)
+    cv = StratifiedKFold(FLAGS.num_cv_splits, True)
 
     # In order to select by set of indices, convert to numpy array.
     docs_arr = np.array(docs)
@@ -282,9 +245,6 @@ def main(argv):
 
     logging.info("Training NN.")
 
-    # Create instance of the neural network.
-    nn = cnn.GaoTextCNN(vocab, num_classes, max_words)
-
     # Train the NN num_epochs x num_cv_runs.
     #   Default: 10 epochs x 10 CV splits = 100 sessions.
     split_num = 0
@@ -292,13 +252,17 @@ def main(argv):
         split_num += 1
         logging.info('CV Split {0:d}'.format(split_num))
 
+        # Create instance of the neural network.
+        # TODO Should this be out of the CV loop?
+        nn = cnn.GaoTextCNN(vocab, num_classes, max_words, flags=FLAGS)
+
         # TODO Return set of metrics after each epoch.
         nn.train(docs_arr[train], y_arr[train],
-                 epochs=num_epochs,
+                 epochs=FLAGS.num_epochs,
                  cv_split_num=split_num,
                  validation_data=(docs_arr[test], y_arr[test]))
 
-        if split_num == num_cv_runs:
+        if split_num == FLAGS.num_cv_runs:
             break
 
     # ===================== +
