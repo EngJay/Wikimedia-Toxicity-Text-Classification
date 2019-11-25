@@ -5,28 +5,21 @@
 #                                   /
 #==================================+
 
-# Downloadable datasets (allow data processing scripts).
-data/Wikimedia-Toxicity-Aggression/*
-!data/Wikimedia-Toxicity-Aggression/data_prep_wikimedia_aggression.py
+# TF-IDF experiment that needs to be cleand up before being included.
+tfidf/
 
-data/Wikimedia-Toxicity-Personal-Attacks/*
-!data/Wikimedia-Toxicity-Personal-Attacks/data_prep_wikimedia_attacks.py
-
-data/Wikimedia-Toxicity-Toxicity/*
-!data/Wikimedia-Toxicity-Toxicity/data_prep_wikimedia_toxicity.py
-
-data/jigsaw-toxic-comment-classification-challenge/*
-!data/jigsaw-toxic-comment-classification-challenge/data_prep_jigsaw.py
-
-# Downloadable pretrained embeddings.
-data/pretrained_embeddings/GoogleNews-vectors-negative300.bin
-
-# Generatable files.
-data/cache*
-data/pretrained_embeddings/embeddings-cache.bin
+# Downloadable data.
+data/
 
 # Tensorboard logs that are too large for repo.
 logs/tensorboard/*
+
+# The metadata produced by TensorFlow (including the models).
+output/
+
+# IPython
+profile_default/
+ipython_config.py
 
 #=====================+
 #                    /

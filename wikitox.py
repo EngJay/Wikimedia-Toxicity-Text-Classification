@@ -4,7 +4,6 @@
 
 import os
 import sys
-from pathlib import Path
 import logging
 from io import BytesIO
 from tensorflow.python.lib.io import file_io
@@ -85,6 +84,7 @@ FLAGS = tf.flags.FLAGS
 
 
 def main(argv):
+    del argv
     # Set verbosity of tf logging.
     if FLAGS.verbose:
         tf.logging.set_verbosity(tf.logging.DEBUG)

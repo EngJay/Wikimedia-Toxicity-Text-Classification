@@ -1,17 +1,5 @@
-# Datasets
+# Data
 
-Datasets are downloadable from figshare.
+TODO Write readme explaining how to acquire the data.
 
-## Wikipedia Talk Labels: Personal Attacks
-
-TODO Describe data, location to download.
-
-
-## Wikipedia Talk Labels: Aggression
-
-TODO Describe data, location to download.
-
-
-## Wikipedia Talk Labels: Toxicity
-
-TODO Describe data, location to download.****
+TODO Explain how data would need to be formatted for use in the scripts. 

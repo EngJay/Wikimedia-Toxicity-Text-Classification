@@ -19,7 +19,8 @@ import logging
 class BritzTextCNN(object):
     """
     A CNN for text classification.
-    Uses an embedding layer, followed by a convolutional, max-pooling and softmax layer.
+    Uses an embedding layer, followed by a convolutional, max-pooling and softmax
+    layer.
 
 
     sequence_length – The length of our sentences. Remember that we padded all our
