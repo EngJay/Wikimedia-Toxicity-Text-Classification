@@ -5,6 +5,9 @@
 #                                   /
 #==================================+
 
+# Model output.
+output/
+
 # TF-IDF experiment that needs to be cleand up before being included.
 tfidf/
 
@@ -13,7 +16,7 @@ data/
 
 # Tensorboard logs that are too large for repo.
 logs/tensorboard/*
-
+s
 # The metadata produced by TensorFlow (including the models).
 output/
 

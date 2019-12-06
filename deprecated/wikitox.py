@@ -12,7 +12,7 @@ import tensorflow as tf
 import msgpack
 from sklearn.preprocessing import LabelEncoder, LabelBinarizer, OneHotEncoder
 from sklearn.model_selection import StratifiedKFold
-import tf_gao_text_cnn as cnn
+from deprecated import tf_gao_text_cnn as cnn
 
 # GPU check.
 # Ensure tensorflow can find CUDA device.

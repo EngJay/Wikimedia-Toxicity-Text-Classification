@@ -2,4 +2,4 @@
 
 TODO Write readme explaining how to acquire the data.
 
-TODO Explain how data would need to be formatted for use in the scripts. 
+TODO Explain how data would need to be formatted for use in the scripts.
