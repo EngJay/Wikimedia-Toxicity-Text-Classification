@@ -7,6 +7,15 @@ An academic project exploring the use of convolutional neural networks and varia
 This repo is currently a mess but is only the first step in the beginning to organize the material for open-sourcing. The thinking is to just get it committed, then organize and refine as the project wraps up.
 
 Note: the bulk of the preprocessing scripts and data are currently stored in a separate repo but will be progressively merged with this repo.
+s
+## TODO
+
+- Update GC-Commands-Reference.txt to properly represent commands used in the project.
+- Merge data repo with this repo.
+- Flesh out a README for each of the directories in the project.
+- Move the notebooks into the notebooks directory.
+- Clean up the tfidf directory in order to include it in the repo.
+- 
 
 ## Changelog
 All notable changes to this project will be documented here.
@@ -18,6 +27,7 @@ All notable changes to this project will be documented here.
 #### Changed: 
 - Renamed runner scripts to example_SCRIPT_NAME.sh.
 - Abstracted runner scripts to be examples.
+- Fixed variable references in runner scripts.
 - Removed dependence on logger from cnn_text.py.
 - Moved old versions of networks and experiments to deprecated directory.
 
