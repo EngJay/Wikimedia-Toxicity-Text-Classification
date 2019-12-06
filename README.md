@@ -7,7 +7,6 @@ An academic project exploring the use of convolutional neural networks and varia
 This repo is currently a mess but is only the first step in the beginning to organize the material for open-sourcing. The thinking is to just get it committed, then organize and refine as the project wraps up.
 
 Note: the bulk of the preprocessing scripts and data are currently stored in a separate repo but will be progressively merged with this repo.
-s
 ## TODO
 
 - Update GC-Commands-Reference.txt to properly represent commands used in the project.
@@ -15,7 +14,6 @@ s
 - Flesh out a README for each of the directories in the project.
 - Move the notebooks into the notebooks directory.
 - Clean up the tfidf directory in order to include it in the repo.
-- 
 
 ## Changelog
 All notable changes to this project will be documented here.
