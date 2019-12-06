@@ -11,6 +11,16 @@ Note: the bulk of the preprocessing scripts and data are currently stored in a s
 ## Changelog
 All notable changes to this project will be documented here.
 
+### 2019-12-06
+#### Added:
+- Docs directory.
+- Diagrams in the docs directory. 
+#### Changed: 
+- Renamed runner scripts to example_SCRIPT_NAME.sh.
+- Abstracted runner scripts to be examples.
+- Removed dependence on logger from cnn_text.py.
+- Moved old versions of networks and experiments to deprecated directory.
+
 ### 2019-11-25
 #### Added:
 - Experiment scripts.

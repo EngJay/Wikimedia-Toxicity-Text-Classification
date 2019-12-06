@@ -1,0 +1,80 @@
+
+General template for setting up VM, which
+
+- Installs python packages needed by experiments that are 
+  not preinstalled on VM.
+- Sets a shell variable for the GCS bucket location.
+- Copies over the experiment python script from GCS and
+  adds execute permission.
+- Copies over the runner shell script from GCS and adds execute 
+  permission. 
+
+
+Three things are needed:
+
+1. Names of the python packages to install.
+2. Name of the GCS storage bucket.
+3. Name of the experiment python script to copy over from GCS.
+
+This assumes the runner shell script is named run.sh. If 
+experiment-specific runner scripts are used, then
+
+4. Name of runner shell scrip to copy over from GCS. 
+
+
+pip3 install PACKAGE_1 PACKAGE_2 ... PACKAGE_N \
+&& export STORAGE_BUCKET=gs://STORAGE_BUCKET_NAME \
+&& gsutil cp ${STORAGE_BUCKET}/PYTHON_SCRIPT_FOR_EXPERIMENT.py . \
+&& chmod +x PYTHON_SCRIPT_FOR_EXPERIMENT.py \
+&& gsutil cp ${STORAGE_BUCKET}/run.sh . && chmod +x run.sh
+
+
+-----------------------------------------------------------------
+
+
+Examples for setting up VM for specific experiments:
+
+
+sudo pip3 install msgpack scikit-learn requests \
+&& export STORAGE_BUCKET=gs://ml-workhorse-0 \
+&& gsutil cp ${STORAGE_BUCKET}/cnn_text.py . \
+&& chmod +x cnn_text.py \
+&& gsutil cp ${STORAGE_BUCKET}/run.sh . \
+&& chmod +x run.sh 
+
+
+export STORAGE_BUCKET=gs://ml-workhorse-0 \
+&& gsutil cp ${STORAGE_BUCKET}/USE_THESE/cnn_text.py . \
+&& chmod +x cnn_text.py \
+&& gsutil cp ${STORAGE_BUCKET}/USE_THESE/run.sh . \
+&& chmod +x run.sh 
+
+
+sudo pip3 install msgpack scikit-learn requests \
+&& export STORAGE_BUCKET=gs://ml-workhorse-0 \
+&& gsutil cp ${STORAGE_BUCKET}/dev/cnn_text.py . \
+&& chmod +x cnn_text.py \
+&& gsutil cp ${STORAGE_BUCKET}/dev/run.sh . \
+&& chmod +x run.sh 
+
+---
+
+
+ATTENTION W/ LEXICONS:
+
+pip3 install msgpack scikit-learn imblearn \
+&& export STORAGE_BUCKET=gs://abusedetectionsummer2019 \
+&& q/CNN_attention_with_lex.py . \
+&& chmod +x CNN_attention_with_lex.py \
+&& gsutil cp ${STORAGE_BUCKET}/run.sh . \
+&& chmod +x run.sh
+
+
+-----------------------------------------------------------------
+
+
+Tensorboard on GCS:
+
+# Run and click web preview button to view reporting.
+tensorboard --logdir=gs://ml-workhorse-0/
+

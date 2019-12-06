@@ -8,7 +8,6 @@ from tensorflow.python.keras.preprocessing import sequence
 import numpy as np
 import msgpack
 from io import BytesIO
-import logging
 from sklearn.preprocessing import LabelEncoder, LabelBinarizer
 from sklearn.model_selection import train_test_split
 import requests
@@ -120,7 +119,7 @@ FLAGS = tf.flags.FLAGS
 # -------------------- +
 
 # Read in embeddings.
-logging.info('Loading data.')
+print('Loading data.')
 f = BytesIO(file_io.read_file_to_string(FLAGS.embeddings_dir, binary_mode=True))
 vocab = np.load(f)
 
@@ -165,7 +164,7 @@ def indexes_to_text(indexes):
 def prepare_data(raw_data):
     # TODO Move this into the TF dataset API?
     # Convert data to numpy arrays.
-    logging.info('Converting data to arrays.')
+    print('Converting data to arrays.')
 
     # For keeping number of words in longest document.
     max_words = 0
