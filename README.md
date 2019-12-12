@@ -21,9 +21,10 @@ All notable changes to this project will be documented here.
 
 ### 2019-12-12
 #### Added:
-- GoogleNews-related files and  directory to data directory.
+- GoogleNews-related files and directory to data directory.
 - Jigsaw-related files and directory to data directory.  
 - PNGs of diagrams used in paper.
+- Lexicon-related files and directory to the data directory.
 
 ### 2019-12-06
 #### Added:
