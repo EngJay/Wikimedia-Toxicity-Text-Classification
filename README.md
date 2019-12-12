@@ -4,11 +4,12 @@ An academic project exploring the use of convolutional neural networks and varia
 
 ## Current Status
 
-This repo is currently a mess but is only the first step in the beginning to organize the material for open-sourcing. The thinking is to just get it committed, then organize and refine as the project wraps up.
+The current state of this repo is only the first step in the beginning to organize the material for open-sourcing. The thinking is to just get it committed, then organize and refine as the project wraps up.
 
 Note: the bulk of the preprocessing scripts and data are currently stored in a separate repo but will be progressively merged with this repo.
 ## TODO
 
+- Add doc comments to top of files.
 - Update GC-Commands-Reference.txt to properly represent commands used in the project.
 - Merge data repo with this repo.
 - Flesh out a README for each of the directories in the project.
