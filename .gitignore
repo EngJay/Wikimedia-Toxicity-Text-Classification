@@ -12,12 +12,8 @@ output/
 tfidf/
 
 # Downloadable data.
-data/*
-
-!data/README*
-!data/*.ipynb
-
-
+data/*.npy
+data/*.bin
 
 # Tensorboard logs that are too large for repo.
 logs/tensorboard/*

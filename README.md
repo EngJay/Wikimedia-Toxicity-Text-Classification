@@ -1,6 +1,6 @@
 # Text Classification: Abusive Language
 
-An academic project exploring the use of convolutional neural networks and variants of word embedding to detect abusive language in online text.
+An academic project exploring the use of convolutional neural networks and variants of word embeddings to detect abusive language in online text.
 
 ## Current Status
 
@@ -13,11 +13,17 @@ Note: the bulk of the preprocessing scripts and data are currently stored in a s
 - Update GC-Commands-Reference.txt to properly represent commands used in the project.
 - Merge data repo with this repo.
 - Flesh out a README for each of the directories in the project.
-- Move the notebooks into the notebooks directory.
+- Move the notebooks into the appropriate directories.
 - Clean up the tfidf directory in order to include it in the repo.
 
 ## Changelog
 All notable changes to this project will be documented here.
+
+### 2019-12-12
+#### Added:
+- GoogleNews-related files and  directory to data directory.
+- Jigsaw-related files and directory to data directory.  
+- PNGs of diagrams used in paper.
 
 ### 2019-12-06
 #### Added:
