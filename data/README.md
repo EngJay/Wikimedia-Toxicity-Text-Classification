@@ -16,7 +16,7 @@ The source data used for this study can be downloaded from Wikimedia, Kaggle, an
 
 ### Lexicons
 
-The lexicons used in this study are listed here and the related preprocessing files can be found in the Lexicons directory within the data directory.
+The lexicons used in this study are listed here and the related preprocessing files can be found in the Lexicons directory within the data directory. Due to size constraints, though, the lexicons themselves are not included. They can downloaded from their respective sources.
 
 * **Abusive Words**:
 * **AFINN-96**:

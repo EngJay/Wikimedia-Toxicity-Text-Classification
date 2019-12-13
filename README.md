@@ -6,12 +6,10 @@ An academic project exploring the use of convolutional neural networks and varia
 
 The current state of this repo is only the first step in the beginning to organize the material for open-sourcing. The thinking is to just get it committed, then organize and refine as the project wraps up.
 
-Note: the bulk of the preprocessing scripts and data are currently stored in a separate repo but will be progressively merged with this repo.
 ## TODO
 
 - Add doc comments to top of files.
 - Update GC-Commands-Reference.txt to properly represent commands used in the project.
-- Merge data repo with this repo.
 - Flesh out a README for each of the directories in the project.
 - Move the notebooks into the appropriate directories.
 - Clean up the tfidf directory in order to include it in the repo.
@@ -25,6 +23,12 @@ All notable changes to this project will be documented here.
 - Jigsaw-related files and directory to data directory.  
 - PNGs of diagrams used in paper.
 - Lexicon-related files and directory to the data directory.
+- Specialized embeddings-related files and directories.
+- Wikipedia Personal Attacks corpus-related files and directory.
+#### Changed:
+- Moved old Gao feature extraction script to deprecated directory.
+- Moved experiment scripts to experiments directory. 
+- moved runner scripts to runners directory in experiments directory.
 
 ### 2019-12-06
 #### Added:
